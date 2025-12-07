@@ -1,9 +1,10 @@
 # DVAE Classifier
-[![Python](https://img.shields.io/badge/Python-3.9%2B-blue)](https://www.python.org/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.2%2B-red)](https://pytorch.org/)
-[![Pyro](https://img.shields.io/badge/Pyro-%E2%89%A5%201.7.0-orange)](https://pyro.ai/)
+[![Python](https://img.shields.io/badge/Python-≤3.12.12-blue)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.2.2-red)](https://pytorch.org/)
+[![Pyro](https://img.shields.io/badge/Pyro-1.9.1-orange)](https://pyro.ai/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
 
+Pyro/PyTorch implementation of the **Denoising Variational Auto‑Encoder (DVAE)** for binary classification in extremely low‑data regimes…
 Pyro/PyTorch implementation of the **Denoising Variational Auto‑Encoder (DVAE)** for binary classification in extremely low‑data regimes, based on the paper:
 
 > *Harnessing Variational Auto‑Encoder for Binary Classification in Extremely Low Data Regime*  
@@ -21,14 +22,50 @@ The classifier implementation is centered on the VAE class in `vae/vae.py`.
 
 
 ## Installation
-
 Clone the repository and install dependencies:
 
 ```bash
 git clone https://github.com/rdned/DVAE.git
 cd DVAE
+pyenv install 3.12.12
+pyenv virtualenv 3.12.12 dvae-3.12.12
+pyenv local dvae-3.12.12
+pip install --upgrade pip setuptools wheel
 pip install -r requirements.txt
 ```
+> **Note:** DVAE requires Python ≤3.12.12.  
+> PyTorch does not yet provide wheels for Python 3.13+, so please ensure you are using Python 3.12.x.
+---
+### Quick Start / Usage (new section)
+
+To verify your installation, run the included example test:
+
+```bash
+python -m example.tests
+````
+## Dependencies
+
+This project pins exact versions for reproducibility:
+
+- filelock==3.20.0
+- fsspec==2025.12.0
+- Jinja2==3.1.6
+- joblib==1.5.2
+- MarkupSafe==3.0.3
+- mpmath==1.3.0
+- networkx==3.6
+- numpy==1.26.4   # pinned <2 for PyTorch ABI compatibility
+- opt_einsum==3.4.0
+- pyro-api==0.1.2
+- pyro-ppl==1.9.1
+- scikit-learn==1.7.2
+- scipy==1.16.3
+- sympy==1.14.0
+- threadpoolctl==3.6.0
+- torch==2.2.2
+- tqdm==4.67.1
+- typing_extensions==4.15.0
+
 
 ## Repository structure
 
@@ -43,14 +80,12 @@ pip install -r requirements.txt
 ## Examples
 
 The repository includes example/data with a sample dataset in JSON and NPZ formats:
-- `example/data` – data folder, which contains example datafile in json and npz format
+- `example/data` – data folder, which contains example datafile in JSON and NPZ format
 - `example/test.py` - script for running the example
-
-Expected conventions:
 
 NPZ format:
 * A .npz archive containing arrays:
-  * X : array-like, shape (N, ...) input features (e.g., flattened vectors or images)
+  * X: array-like, shape (N, ...) input features (e.g., flattened vectors or images)
   * labels : binary labels, shape (N,)
     
 JSON format:
@@ -62,10 +97,10 @@ JSON format:
 ```
 
 * example/test.py:
-   * Loads the the example file, instantiates the model (with config), and runs a short train and eval pass for a list of training sizes.
+   * Loads the example file, instantiates the model (with config), and runs a short train and eval pass for a list of training sizes.
 
 If you adapt your own dataset:
-   * Ensure X and y arrays are aligned and that y contains binary labels (0/1).
+   * Ensure X and labels arrays are aligned and that labels contain binary labels (0/1).
 
 ## Configuration
 

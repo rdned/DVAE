@@ -1,22 +1,23 @@
-import numpy as np
-import math
-import time
-
-import torch
-import torch.nn as nn
-from torch.utils.data import DataLoader
-from sklearn.metrics import accuracy_score
-import scipy.sparse as ss
-
 import pyro
 import pyro.distributions as dist
 from pyro.infer import SVI, JitTraceGraph_ELBO
 from pyro.optim import AdamW
 
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader
+
+from sklearn.metrics import accuracy_score
+import scipy.sparse as ss
+
+import numpy as np
+import math
+import time
+
 from vae.utils.utils import asMinutes
 from vae.utils.logger import logger
 from vae.utils.custom_mlp import MLP
-from vae.config.hyperparameters import HIDDEN_DIM, Z_DIM, MINIBATCH_SIZE, SUBSAMPLE_RATIO, LR_ADAM, BETAS
+from vae.config.hyperparameters import HIDDEN_DIM, Z_DIM, MINIBATCH_SIZE, SUBSAMPLE_RATIO, LR_ADAM, BETAS, ALPHA1, ALPHA2, BETA, BCP
 
 print(f"Is cuda available? {torch.cuda.is_available()}")
 print(f"Cuda device count: {torch.cuda.device_count()}")
@@ -38,7 +39,7 @@ if device.type == 'cuda':
 TH_PRED = 0.5  # threshold for binarizing the predicion: [0,1] --> {0,1}
 
 print(f"Pyro version: {pyro.__version__}")
-assert pyro.__version__.startswith('1.7.0')
+#assert pyro.__version__.startswith('1.7.0')
 pyro.enable_validation(True)
 pyro.set_rng_seed(101)
 
@@ -71,7 +72,7 @@ class Y_loc(nn.Module):
 
 # define a PyTorch module for the VAE
 class VAE(nn.Module):
-    def __init__(self, alpha1=1e-5, alpha2=1, beta=1e-2, corruption=0.7, z_dim=Z_DIM, hidden_dim=HIDDEN_DIM, use_cuda=USE_CUDA, **data_tr):
+    def __init__(self, alpha1=ALPHA1, alpha2=ALPHA2, beta=BETA, corruption=BCP, z_dim=Z_DIM, hidden_dim=HIDDEN_DIM, use_cuda=USE_CUDA, **data_tr):
         super().__init__()
         logger.debug(f"Pyro: {pyro.__version__}")
 
@@ -178,7 +179,7 @@ class VAE(nn.Module):
         z_loc, z_scale = self.encoder.forward(x)
         return self.decoder_x.forward(z_loc), z_loc
 
-    def infer_parameters(self, num_epochs=40, batch_size=MINIBATCH_SIZE, dt_tr=dict(), dt_te=dict()):
+    def infer_parameters(self, num_epochs=40, batch_size=MINIBATCH_SIZE, dt_tr=dict()):
         prob_tensor_cache = {} 
 
         def corrupt(X, p):
@@ -263,7 +264,7 @@ class VAE(nn.Module):
         predVI = np.concatenate(preds, axis=0)
         self.z_loc_embedding = np.concatenate(z_embs, axis=0)
         self.x_reconst = np.concatenate(x_reconst, axis=0)
-        if not dta_te['y'].empty:
+        if dta_te['y'].size > 0:
             acc_te = round(accuracy_score(dta_te['y'], predVI > TH_PRED) * 100, 3)
             logger.debug(f"Test accuracy: {acc_te}")
         return predVI
@@ -295,7 +296,7 @@ def create_loader(batch_size=MINIBATCH_SIZE, use_cuda=False, **dta):
                 k: torch.Tensor(v.toarray() if isinstance(v, ss.spmatrix) else v)
                 for (k, v) in dta.items() if k not in ['y']
             }
-            if 'y' in dta.keys() and not dta['y'].empty:
+            if 'y' in dta.keys() and not dta['y'].size==0:
                 self.features_dict['y'] = torch.Tensor(np.array(dta['y'])).to(torch.int64)
 
         def __getitem__(self, index):
