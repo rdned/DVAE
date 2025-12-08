@@ -1,3 +1,5 @@
+from email.utils import encode_rfc2231
+
 import pyro
 import pyro.distributions as dist
 from pyro.infer import SVI, JitTraceGraph_ELBO
@@ -5,10 +7,8 @@ from pyro.optim import AdamW
 
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
 
 from sklearn.metrics import accuracy_score
-import scipy.sparse as ss
 
 import numpy as np
 import math
@@ -72,30 +72,26 @@ class Y_loc(nn.Module):
 
 # define a PyTorch module for the VAE
 class VAE(nn.Module):
-    def __init__(self, alpha1=ALPHA1, alpha2=ALPHA2, beta=BETA, corruption=BCP, z_dim=Z_DIM, hidden_dim=HIDDEN_DIM, use_cuda=USE_CUDA, **data_tr):
+    def __init__(self, feature_dim, alpha1=ALPHA1, alpha2=ALPHA2, beta=BETA, corruption=BCP, z_dim=Z_DIM, hidden_dim=HIDDEN_DIM):
         super().__init__()
         logger.debug(f"Pyro: {pyro.__version__}")
 
+        self.use_cuda = USE_CUDA
         self.alpha1=alpha1
         self.alpha2=alpha2
         self.beta=beta
         self.corruption=corruption
         self.z_dim = z_dim
-        n_words = data_tr['encoder'].shape[1]
-        self.n_words = n_words
-        features_dict = {
-            k: torch.Tensor(v.toarray() if isinstance(v, ss.spmatrix) else v )
-            for (k, v) in data_tr.items() if k not in ['y']
-        }
-        self.mean_std = {k: [features_dict[k].mean(0), features_dict[k].std(0)] for k in features_dict.keys()}
+        self.feature_dim = feature_dim
+
         self.encoder = MLP(
             name = 'encoder',
-            mlp_sizes = [n_words] + [8*hidden_dim] + [[z_dim, z_dim]],
+            mlp_sizes = [feature_dim] + [8*hidden_dim] + [[z_dim, z_dim]],
             activation=nn.Softplus,
             output_activation=[Z_loc, Z_scale],
             post_act_fct=lambda layer_ix, total_layers, layer: None,
             allow_broadcast=True,
-            use_cuda=use_cuda,
+            use_cuda=self.use_cuda,
         )
 
         self.decoder = MLP(
@@ -105,22 +101,21 @@ class VAE(nn.Module):
             output_activation=Y_loc,
             post_act_fct=lambda layer_ix, total_layers, layer: None,
             allow_broadcast=True,
-            use_cuda=use_cuda,
+            use_cuda=self.use_cuda,
         )
         self.decoder_x = MLP(
             name = "decoder_x",
-            mlp_sizes = [z_dim] + [hidden_dim] + [n_words],
+            mlp_sizes = [z_dim] + [hidden_dim] + [feature_dim],
             activation=nn.Softplus,
             output_activation=None,
             post_act_fct=lambda layer_ix, total_layers, layer: None,
             allow_broadcast=True,
-            use_cuda=use_cuda,
+            use_cuda=self.use_cuda,
         )
 
-        if use_cuda:
+        if self.use_cuda:
             # calling cuda() here will put all the parameters of the encoder and decoder networks into gpu memory
             self.cuda()
-        self.use_cuda = use_cuda
 
     # define the model p(x|z)p(z)
     # @config_enumerate
@@ -142,10 +137,10 @@ class VAE(nn.Module):
                 pyro.sample("obs",
                         dist.Bernoulli(loc_y),  # .to_event(1),
                         infer={"enumerate": "sequential"},
-                        obs=batch_dict['y'].float().index_select(0, ind).detach()
+                        obs=batch_dict['labels'].float().index_select(0, ind).detach()
                 )
             with pyro.poutine.scale(scale=self.alpha1):
-                eye_matrix = torch.eye(self.n_words, device=loc_x.device)
+                eye_matrix = torch.eye(self.feature_dim, device=loc_x.device)
                 pyro.sample(
                     "reconstruct_x",
                     dist.MultivariateNormal(loc_x, eye_matrix),
@@ -179,7 +174,7 @@ class VAE(nn.Module):
         z_loc, z_scale = self.encoder.forward(x)
         return self.decoder_x.forward(z_loc), z_loc
 
-    def infer_parameters(self, num_epochs=40, batch_size=MINIBATCH_SIZE, dt_tr=dict()):
+    def infer_parameters(self, train_loader, num_epochs=40):
         prob_tensor_cache = {} 
 
         def corrupt(X, p):
@@ -201,8 +196,6 @@ class VAE(nn.Module):
         start = time.time()
         pyro.clear_param_store()
 
-        train_loader = create_loader(batch_size=batch_size, use_cuda=self.use_cuda, **dt_tr)
-
         # setup the optimizer
         adam_args = {"lr": LR_ADAM,
                      "betas": BETAS
@@ -220,7 +213,7 @@ class VAE(nn.Module):
             epoch_loss = 0.
             if epoch > 0:
                 pred_train_old = pred_train.copy()
-            pred_train = []
+            pred_train, labels_train = [], []
 
             for batch_dict in train_loader:
                 # if on GPU put mini-batch into CUDA memory
@@ -229,30 +222,31 @@ class VAE(nn.Module):
                     batch_dict[self.encoder.name] = batch_dict[self.encoder.name].cuda()
                     batch_dict['corr_'+self.encoder.name] = batch_dict['corr_'+self.encoder.name].cuda()
                 try:
-                    epoch_loss += svi.step(batch_dict, sample_size=batch_dict['y'].size(0)) / \
+                    epoch_loss += svi.step(batch_dict, sample_size=batch_dict['labels'].size(0)) / \
                                   (N_data * MINIBATCH_SIZE // SUBSAMPLE_RATIO)
                 except Exception as err:
                     logger.debug(f"The batch that causes problems has length "
-                                 f"{batch_dict['y'].size(0)}: {err}")
+                                 f"{batch_dict['labels'].size(0)}: {err}")
                 if math.isnan(epoch_loss):
                     logger.debug(f"Incorrect hyperparameters")
                     return pred_train_old
 
                 pred_tr = self.classify(batch_dict)
                 pred_train.append(pred_tr.detach().cpu().numpy())
+                labels_train.append(batch_dict['labels'].detach().cpu().numpy())
 
-            pred_train = np.concatenate(pred_train, axis=0)
-            acc_tr = round(accuracy_score(dt_tr['y'], pred_train > TH_PRED)*100, 3)
+            score_train = np.concatenate(pred_train, axis=0)
+            labels_train = np.concatenate(labels_train, axis=0)
+            acc_tr = round(accuracy_score(labels_train, score_train > TH_PRED)*100, 3)
 
             if acc_tr > 99.5:
                 perfect_tr.append(acc_tr)
             if len(perfect_tr) > 30:  # to reduce overfitting
                 break
         logger.debug(f"Training finished in {asMinutes(time.time() - start)}")
-        return pred_train
+        return score_train
 
-    def calc_predVI(self, batch_size=MINIBATCH_SIZE, **dta_te):
-        test_loader = create_loader(batch_size=batch_size, use_cuda=self.use_cuda, **dta_te)
+    def calc_predVI(self, test_loader):
         preds, z_embs, x_reconst = [], [], []
         for batch_dict in test_loader:
             pred = self.classify(batch_dict)
@@ -264,45 +258,4 @@ class VAE(nn.Module):
         predVI = np.concatenate(preds, axis=0)
         self.z_loc_embedding = np.concatenate(z_embs, axis=0)
         self.x_reconst = np.concatenate(x_reconst, axis=0)
-        if dta_te['y'].size > 0:
-            acc_te = round(accuracy_score(dta_te['y'], predVI > TH_PRED) * 100, 3)
-            logger.debug(f"Test accuracy: {acc_te}")
         return predVI
-
-
-def create_loader(batch_size=MINIBATCH_SIZE, use_cuda=False, **dta):
-    """
-        Create a PyTorch DataLoader from dictionary-like input.
-
-        Parameters
-        ----------
-        batch_size : int
-            Number of samples per batch.
-        use_cuda : bool
-            Whether to enable pinned memory for CUDA transfer.
-        dta : dict
-            Feature arrays keyed by name. Sparse matrices are converted to dense.
-            If 'y' is present, it is treated as integer labels.
-
-        Returns
-        -------
-        torch.utils.data.DataLoader
-            DataLoader yielding batches as dictionaries {feature_name: tensor}.
-        """
-
-    class MyDataset(torch.utils.data.Dataset):
-        def __init__(self):
-            self.features_dict = {
-                k: torch.Tensor(v.toarray() if isinstance(v, ss.spmatrix) else v)
-                for (k, v) in dta.items() if k not in ['y']
-            }
-            if 'y' in dta.keys() and not dta['y'].size==0:
-                self.features_dict['y'] = torch.Tensor(np.array(dta['y'])).to(torch.int64)
-
-        def __getitem__(self, index):
-            return dict((f_name, f_values[index]) for f_name, f_values in self.features_dict.items())
-
-        def __len__(self):
-            return max([len(x) for x in self.features_dict.values()]+[0])
-
-    return DataLoader(MyDataset(), batch_size=batch_size, num_workers=0, pin_memory=use_cuda, shuffle=False)
