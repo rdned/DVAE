@@ -1,3 +1,4 @@
+from math import pi
 import torch
 from torch.utils.data import DataLoader
 import scipy.sparse as ss
@@ -22,14 +23,28 @@ logger.setLevel(logging.INFO)   # or DEBUG, WARNING, ERROR, CRITICAL
 USE_CUDA = torch.cuda.is_available()
 TR_SIZE = [2, 3, 4, 5, 6, 8, 10, 16]  # training size n
 
+class MyDataset(torch.utils.data.Dataset):
+    def __init__(self, X, y):
+        self.features_dict = {
+            'encoder': torch.Tensor(
+                X.toarray() if isinstance(X, ss.spmatrix) else X
+            ),
+            'labels': torch.Tensor(np.array(y)).to(torch.int64)}
 
-def create_loader(**dta):
+    def __getitem__(self, index):
+        return dict(encoder=self.features_dict['encoder'][index], labels=self.features_dict['labels'][index])
+    
+    def __len__(self):
+        return max([len(x) for x in self.features_dict.values()]+[0])
+    
+
+def create_loader(X, y, batch_size=MINIBATCH_SIZE, num_workers=0, pin_memory=USE_CUDA, shuffle=False):
     """
         Create a PyTorch DataLoader from dictionary-like input.
 
         Parameters
         ----------
-        dta : dict
+        X, y: array-like
             Feature arrays keyed by name. Sparse matrices are converted to dense.
             'labels' treated as integer labels.
 
@@ -39,41 +54,26 @@ def create_loader(**dta):
             DataLoader yielding batches as dictionaries {feature_name: tensor}.
         """
 
-    class MyDataset(torch.utils.data.Dataset):
-        def __init__(self):
-            self.features_dict = {
-                'encoder': torch.Tensor(
-                    dta['encoder'].toarray() if isinstance(dta['encoder'], ss.spmatrix) else dta['encoder']
-                ),
-                'labels': torch.Tensor(np.array(dta['labels'])).to(torch.int64)}
-
-        def __getitem__(self, index):
-            return dict((f_name, f_values[index]) for f_name, f_values in self.features_dict.items())
-
-        def __len__(self):
-            return max([len(x) for x in self.features_dict.values()]+[0])
-
-    return DataLoader(MyDataset(), batch_size=MINIBATCH_SIZE, num_workers=0, pin_memory=USE_CUDA, shuffle=False)
+    return DataLoader(MyDataset(X, y), batch_size=batch_size, num_workers=num_workers, pin_memory=pin_memory, shuffle=shuffle)
 
 
-def shuffle_split(*arg, tr_sz=10, random_state=42):
+def shuffle_split(X, y, tr_sz=10, random_state=42):
     """
-    :param arg: X, labels
+    :param X, y: data to split
     :param tr_sz: training size
     :param random_state:
     :return: dict(encoder=train_2Darray, labels=labels),
              dict(encoder=test_2Darray, labels=labels)
     """
-    dta = shuffle(*arg, random_state=random_state)
-    labels = np.array(dta[-1], dtype=bool)
+    X_shuffled, y_shuffled = shuffle(X, y, random_state=random_state)
+    labels = np.array(y_shuffled, dtype=bool)
     train_idx = np.hstack((np.where(labels)[0][:tr_sz], np.where(~labels)[0][:tr_sz]))
     test_idx = np.hstack((np.where(labels)[0][tr_sz:], np.where(~labels)[0][tr_sz:]))
 
-    assert len(dta) == 2, f"Data (X,labels) to split has a strange structure: len(data)={len(dta)}"
     logger.debug("Splitting X and labels.")
     labels = np.squeeze(labels)
-    tr_encoder = dta[0][train_idx]
-    te_encoder = dta[0][test_idx]
+    tr_encoder = X_shuffled[train_idx]
+    te_encoder = X_shuffled[test_idx]
 
     return dict(encoder=tr_encoder, labels=labels[train_idx]), \
            dict(encoder=te_encoder, labels=labels[test_idx])
@@ -137,11 +137,11 @@ def classify_data(tr_size, X, labels, random_state=42):
     """
     data_train, data_test = shuffle_split(X, labels, tr_sz=tr_size, random_state=random_state)
 
-    train_loader = create_loader(**data_train)
+    train_loader = create_loader(data_train['encoder'], data_train['labels'], shuffle=True)
     bayesnn, pred_train = train(train_loader)
     th_proposed = propose_threshold(pred_train, data_train['labels'])
 
-    test_loader = create_loader(**data_test)
+    test_loader = create_loader(data_test['encoder'], data_test['labels'], shuffle=False)
     y_pred, predVI = test(bayesnn, th_proposed, test_loader)
     logger.info(f"Test accuracy: {round(accuracy_score(data_test['labels'], y_pred), 3)}")
 
@@ -200,4 +200,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
