@@ -1,14 +1,11 @@
-from math import pi
-import torch
-from torch.utils.data import DataLoader
-import scipy.sparse as ss
-
 import numpy as np
+import torch
+import scipy.sparse as ss
 from sklearn.utils import shuffle
 from sklearn.metrics import accuracy_score
-from vae.vae import VAE
+
+from vae.classifier import VAEClassifier
 from vae.utils.logger import logger
-from vae.config.hyperparameters import N_EPOCHS_EVAL, MINIBATCH_SIZE
 from vae.utils.utils import get_dataset_path
 
 import json
@@ -20,41 +17,7 @@ logger.setLevel(logging.INFO)   # or DEBUG, WARNING, ERROR, CRITICAL
 
 # CONFIGURATION
 # Check for GPU availability
-USE_CUDA = torch.cuda.is_available()
 TR_SIZE = [2, 3, 4, 5, 6, 8, 10, 16]  # training size n
-
-class MyDataset(torch.utils.data.Dataset):
-    def __init__(self, X, y):
-        self.features_dict = {
-            'encoder': torch.Tensor(
-                X.toarray() if isinstance(X, ss.spmatrix) else X
-            ),
-            'labels': torch.Tensor(np.array(y)).to(torch.int64)}
-
-    def __getitem__(self, index):
-        return dict(encoder=self.features_dict['encoder'][index], labels=self.features_dict['labels'][index])
-    
-    def __len__(self):
-        return max([len(x) for x in self.features_dict.values()]+[0])
-    
-
-def create_loader(X, y, batch_size=MINIBATCH_SIZE, num_workers=0, pin_memory=USE_CUDA, shuffle=False):
-    """
-        Create a PyTorch DataLoader from dictionary-like input.
-
-        Parameters
-        ----------
-        X, y: array-like
-            Feature arrays keyed by name. Sparse matrices are converted to dense.
-            'labels' treated as integer labels.
-
-        Returns
-        -------
-        torch.utils.data.DataLoader
-            DataLoader yielding batches as dictionaries {feature_name: tensor}.
-        """
-
-    return DataLoader(MyDataset(X, y), batch_size=batch_size, num_workers=num_workers, pin_memory=pin_memory, shuffle=shuffle)
 
 
 def shuffle_split(X, y, tr_sz=10, random_state=42):
@@ -79,54 +42,6 @@ def shuffle_split(X, y, tr_sz=10, random_state=42):
            dict(encoder=te_encoder, labels=labels[test_idx])
 
 
-def train(train_loader):
-    """
-    :param train_loader: to load batches of training data
-    :return: trained model and prediction scores in [0,1]
-    """
-    feature_dim = next(iter(train_loader))["encoder"].shape[1]
-    bayesnn = VAE(feature_dim)
-    score_train = bayesnn.infer_parameters(train_loader, num_epochs=N_EPOCHS_EVAL)
-
-    return bayesnn, score_train
-
-
-def propose_threshold(score_train, labels_train):
-    """
-    :param score_train: prediction scores in [0,1]
-    :param labels_train: labels of training data
-    :return: proposed threshold for binary classification
-    """
-    thresholds = np.arange(0.05, 0.95, 0.05)
-    accs_tr = np.array([round(accuracy_score(labels_train, score_train >= th), 3) for th in thresholds])
-    acc_best = max(accs_tr)
-    best_idxs = np.where(accs_tr == acc_best)[0]
-    if len(best_idxs) > 1:
-        logger.warning(f"Multiple best accuracies: {accs_tr}")
-        th_proposed = thresholds[best_idxs].mean()  # chose the average threshold
-    else:
-        th_proposed = thresholds[best_idxs[0]]
-
-    logger.debug(f"The proposed threshold: {th_proposed}")
-    logger.debug(f"The best training accuracy {acc_best} at {best_idxs}, {th_proposed}")
-
-    return th_proposed
-
-
-def test(bayesnn, threshold, test_loader):
-    """
-    :param bayesnn: trained model
-    :param threshold: threshold for binarizing the predictions
-    :param test_loader: to load the batches of test data
-    :return: predictions and scores in [0,1]
-    """
-
-    predVI = bayesnn.calc_predVI(test_loader)
-    y_pred = predVI >= threshold
-
-    return y_pred, predVI
-
-
 def classify_data(tr_size, X, labels, random_state=42):
     """
     :param tr_size: training size n
@@ -137,12 +52,12 @@ def classify_data(tr_size, X, labels, random_state=42):
     """
     data_train, data_test = shuffle_split(X, labels, tr_sz=tr_size, random_state=random_state)
 
-    train_loader = create_loader(data_train['encoder'], data_train['labels'], shuffle=True)
-    bayesnn, pred_train = train(train_loader)
-    th_proposed = propose_threshold(pred_train, data_train['labels'])
+    clf = VAEClassifier()
+    clf.fit(data_train['encoder'], data_train['labels'])
 
-    test_loader = create_loader(data_test['encoder'], data_test['labels'], shuffle=False)
-    y_pred, predVI = test(bayesnn, th_proposed, test_loader)
+    y_pred = clf.predict(data_test['encoder'])
+    predVI = clf.predict_proba(data_test['encoder'])
+    
     logger.info(f"Test accuracy: {round(accuracy_score(data_test['labels'], y_pred), 3)}")
 
     return y_pred, predVI
@@ -182,6 +97,7 @@ def run(dataset_name="dataset1", filetype="npz"):
 
     for tr_size in TR_SIZE:
         logging.info(f"******* training size {tr_size} *******")
+        
         classify_data(tr_size, X, labels, random_state=42)
 
 default_input = 'dataset1'

@@ -72,9 +72,36 @@ class Y_loc(nn.Module):
 
 # define a PyTorch module for the VAE
 class VAE(nn.Module):
-    def __init__(self, feature_dim, alpha1=ALPHA1, alpha2=ALPHA2, beta=BETA, corruption=BCP, z_dim=Z_DIM, hidden_dim=HIDDEN_DIM):
+    def __init__(self, feature_dim, alpha1=ALPHA1, alpha2=ALPHA2, beta=BETA, corruption=BCP, z_dim=Z_DIM, hidden_dim=HIDDEN_DIM, seed: int = None):
+        """VAE constructor.
+
+        If `seed` is provided, the RNG state (numpy, torch, pyro) will be temporarily
+        set to this seed only for parameter initialization to ensure deterministic
+        initial weights that do not depend on the surrounding RNG state. The previous
+        RNG state is restored afterwards.
+        """
         super().__init__()
         logger.debug(f"Pyro: {pyro.__version__}")
+
+        # Optionally use a temporary deterministic RNG state for initialization
+        restore_rng = False
+        if seed is not None:
+            # Save current RNG state
+            try:
+                _torch_state = torch.get_rng_state()
+                _np_state = np.random.get_state()
+            except Exception:
+                _torch_state = None
+                _np_state = None
+
+            # Seed global RNGs for reproducible initialization
+            np.random.seed(seed)
+            torch.manual_seed(seed)
+            try:
+                pyro.set_rng_seed(seed)
+            except Exception:
+                pass
+            restore_rng = True
 
         self.use_cuda = USE_CUDA
         self.alpha1=alpha1
@@ -116,6 +143,16 @@ class VAE(nn.Module):
         if self.use_cuda:
             # calling cuda() here will put all the parameters of the encoder and decoder networks into gpu memory
             self.cuda()
+
+        # Restore previous RNG state so we do not affect other code
+        if restore_rng:
+            try:
+                if _torch_state is not None:
+                    torch.set_rng_state(_torch_state)
+                if _np_state is not None:
+                    np.random.set_state(_np_state)
+            except Exception:
+                pass
 
     # define the model p(x|z)p(z)
     # @config_enumerate
