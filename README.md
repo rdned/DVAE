@@ -68,6 +68,8 @@ This produces:
 DVAE/dist/dvae-0.1.0-py3-none-any.whl
 ```
 
+All runtime dependencies (NumPy < 2, PyTorch 2.2.2, Pyro 1.9.1, scikit‑learn 1.7.2) are encoded in the wheel metadata.
+
 #### 2. Create a clean test environment using pyenv (inside `dvae_test/`)
 
 ```bash
@@ -76,15 +78,18 @@ pyenv virtualenv 3.12.12 dvae-test
 pyenv local dvae-test
 ```
 
-#### 3. Install dependencies in the correct order
+#### 3. Install the wheel
 
 PyTorch requires NumPy to be present at install time. Install NumPy first, then PyTorch, then the wheel:
 
 ```bash
-pip install --upgrade numpy
-pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install ../DVAE/dist/dvae-0.1.0-py3-none-any.whl
 ```
+Pip will automatically install the correct versions of:
+* NumPy (< 2)
+* PyTorch 2.2.2 (CPU build from PyPI)
+* Pyro 1.9.1
+* scikit‑learn 1.7.2
 
 For GPU builds, follow the official PyTorch instructions:
 https://pytorch.org/
@@ -132,25 +137,36 @@ Note: the example scripts require that you provide the dataset path (see the "In
 ## Repository Structure
 
 ```
-├── LICENSE
-├── README.md
-├── requirements.txt
-├── example/
-│   ├── data/                    # Example datasets (JSON and NPZ formats)
-│   │   ├── dataset1.json
-│   │   ├── dataset1.npz
-│   │   ├── dataset2.json
-│   │   └── dataset2.npz
-│   └── tests.py                 # Example training and evaluation script
-└── vae/
-    ├── config/
-    │   └── hyperparameters.py   # Configuration and hyperparameters
-    ├── utils/
-    │   ├── __init__.py
-    │   ├── custom_mlp.py
-    │   ├── logger.py
-    │   └── utils.py
-    └── vae.py                    # Main DVAE classifier implementation
+.
+├── CONTRIBUTING.md              # How to contribute, dev workflow, coding standards
+├── LICENSE                      # Project license
+├── README.md                    # Project overview, installation, usage
+├── pyproject.toml               # Single source of truth for runtime dependencies & metadata
+├── scratch-1.ipynb              # Exploratory notebook (not part of the package)
+│
+├── example/                     # Usage demonstrations and internal validation scripts
+│   ├── data/                    # Small example datasets for demos
+│   │   ├── dataset1.json
+│   │   ├── dataset1.npz
+│   │   ├── dataset2.json
+│   │   └── dataset2.npz
+│   └── tests.py                 # Manual example script (not part of automated tests)
+│
+└── vae/                         # Main DVAE package
+    ├── __init__.py              # Package entry point
+    ├── _version.py              # Version management (e.g., via setuptools_scm)
+    ├── classifier.py            # Classifier built on top of the VAE
+    ├── vae.py                   # Core VAE implementation
+    │
+    ├── config/                  # Configuration modules
+    │   ├── __init__.py
+    │   └── hyperparameters.py   # Default hyperparameter definitions
+    │
+    └── utils/                   # Utility functions used across the package
+        ├── __init__.py
+        ├── custom_mlp.py        # Custom MLP architecture used by the VAE
+        ├── logger.py            # Lightweight logging utilities
+        └── utils.py             # Miscellaneous helpers
 ```
 
 ## Usage Examples
