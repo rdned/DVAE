@@ -72,7 +72,7 @@ class Y_loc(nn.Module):
 
 # define a PyTorch module for the VAE
 class VAE(nn.Module):
-    def __init__(self, feature_dim, alpha1=ALPHA1, alpha2=ALPHA2, beta=BETA, corruption=BCP, z_dim=Z_DIM, hidden_dim=HIDDEN_DIM, seed: int = None):
+    def __init__(self, feature_dim, alpha1=ALPHA1, alpha2=ALPHA2, beta=BETA, corruption=BCP, z_dim=Z_DIM, hidden_dim=HIDDEN_DIM, seed: int=None):
         """VAE constructor.
 
         If `seed` is provided, the RNG state (numpy, torch, pyro) will be temporarily

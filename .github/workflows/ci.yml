@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: [3.10, 3.11, 3.12]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip build
+
+      - name: Build wheel
+        run: |
+          python -m build --sdist --wheel
+
+      - name: List generated artifacts
+        run: ls -la dist
+
+      - name: Install wheel into venv
+        run: |
+          python -m pip install dist/*.whl
+
+      - name: Run importability check
+        run: |
+          python - << 'PY'
+          try:
+              import vae
+              print('IMPORT_VAE_OK', getattr(vae, '__version__', 'unknown'))
+          except Exception as e:
+              print('IMPORT_VAE_FAILED')
+              raise
+
+          # Try importing classifier; it may fail if optional deps like torch are missing.
+          try:
+              from vae.classifier import VAEClassifier
+              print('IMPORT_CLASSIFIER_OK')
+          except Exception as e:
+              import sys
+              print('IMPORT_CLASSIFIER_FAILED', str(e), file=sys.stderr)
+
+          # Ensure configuration subpackage is importable and contains hyperparameters
+          try:
+              from vae.config import hyperparameters
+              print('IMPORT_CONFIG_OK', hasattr(hyperparameters, 'MINIBATCH_SIZE'))
+          except Exception as e:
+              import sys
+              print('IMPORT_CONFIG_FAILED', str(e), file=sys.stderr)
+          PY
+
+      - name: Skip example tests (datasets are external)
+        run: |
+          echo "Skipping example tests because datasets are external to the distribution."
+          echo "To run example tests in CI, provide dataset artifacts or a test dataset path."

@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
-from sklearn.utils import shuffle
 from sklearn.metrics import accuracy_score
 from sklearn.base import BaseEstimator, ClassifierMixin
 import scipy.sparse as ss
@@ -33,7 +32,10 @@ class VAEClassifier(BaseEstimator, ClassifierMixin):
 
             if y is not None:
                 y = np.asarray(y)
-                self.labels = torch.tensor(y).long()
+                # Convert boolean labels to integer dtype to avoid torch dtype inference errors
+                if y.dtype == np.bool_:
+                    y = y.astype(np.int64)
+                self.labels = torch.tensor(y, dtype=torch.long)
             else:
                 self.labels = None
 

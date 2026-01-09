@@ -1,6 +1,5 @@
+import os
 import numpy as np
-import torch
-import scipy.sparse as ss
 from sklearn.utils import shuffle
 from sklearn.metrics import accuracy_score
 
@@ -69,7 +68,8 @@ def get_data(filename, filetype='npz'):
     """
     :param filename: 
     """
-    dataset_path = get_dataset_path(filename=f"{filename}.{filetype}")
+    datapath = os.path.join("example", "data", f"{filename}.{filetype}")
+    dataset_path = get_dataset_path(path=datapath)
 
     match filetype:
         case 'json':

@@ -1,5 +1,6 @@
 # DVAE Classifier
 [![Python](https://img.shields.io/badge/Python-≤3.12.12-blue)](https://www.python.org/)
+[![NumPy](https://img.shields.io/badge/NumPy-<2.0-important)](https://numpy.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.2.2-red)](https://pytorch.org/)
 [![Pyro](https://img.shields.io/badge/Pyro-1.9.1-orange)](https://pyro.ai/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
@@ -46,13 +47,87 @@ pip install --upgrade pip setuptools wheel
 pip install -r requirements.txt
 ```
 
-## Quick Start
+### Installation from Source
 
-To verify your installation, run the included example:
+This project uses a two-directory workflow:
+
+- `DVAE/` — the source tree containing the Python package and build configuration
+- `dvae_test/` — a clean environment used to install and test the built wheel
+
+#### 1. Build the wheel (inside `DVAE/`)
 
 ```bash
-python -m example.tests
+cd DVAE
+pip install --upgrade build
+python -m build
 ```
+
+This produces:
+
+```
+DVAE/dist/dvae-0.1.0-py3-none-any.whl
+```
+
+#### 2. Create a clean test environment using pyenv (inside `dvae_test/`)
+
+```bash
+cd ../dvae_test
+pyenv virtualenv 3.12.12 dvae-test
+pyenv local dvae-test
+```
+
+#### 3. Install dependencies in the correct order
+
+PyTorch requires NumPy to be present at install time. Install NumPy first, then PyTorch, then the wheel:
+
+```bash
+pip install --upgrade numpy
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+pip install ../DVAE/dist/dvae-0.1.0-py3-none-any.whl
+```
+
+For GPU builds, follow the official PyTorch instructions:
+https://pytorch.org/
+
+#### 4. Provide the dataset path explicitly
+
+The dataset is not bundled with the package. You must supply its location explicitly.
+
+Option A — Pass the path directly:
+
+```bash
+python - << 'EOF'
+from vae.utils import get_dataset_path
+path = get_dataset_path("/absolute/path/to/DVAE/example/data/dataset1.json")
+print(path)
+EOF
+```
+
+Option B — Use an environment variable:
+
+```bash
+export DATASET_PATH=/absolute/path/to/DVAE/example/data/dataset1.json
+```
+
+Then in Python:
+
+```bash
+python - << 'EOF'
+from vae.utils import get_dataset_path
+print(get_dataset_path())
+EOF
+```
+
+
+## Quick Start
+
+To verify your installation, run the included example (requires an accessible dataset path):
+
+```bash
+python -m example.tests dataset1 --filetype npz
+```
+
+Note: the example scripts require that you provide the dataset path (see the "Installation from Source" section above for instructions on supplying a dataset path or using the DATASET_PATH environment variable).
 
 ## Repository Structure
 
@@ -147,10 +222,10 @@ For detailed configuration options, see `vae/config/hyperparameters.py`.
 
 This project pins exact versions for reproducibility. Key dependencies include:
 
-* torch 2.2.2 – Deep learning framework
-* pyro-ppl 1.9.1 – Probabilistic programming library
+* numpy 1.26.4 – Numerical computing (**required: PyTorch 2.2.2 is not compatible with NumPy ≥ 2.0**)  
+* torch 2.2.2 – Deep learning framework  
+* pyro-ppl 1.9.1 – Probabilistic programming library  
 * scikit-learn 1.7.2 – Machine learning utilities
-* numpy 1.26.4 – Numerical computing
 
 ## Citation
 
