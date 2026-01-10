@@ -1,13 +1,13 @@
 [build-system]
-requires = [
-    "setuptools>=61.0",
-    "wheel"
-]
+requires = ["setuptools>=61.0", "setuptools_scm"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+write_to = "src/dvae/_version.py"
 
 [project]
 name = "dvae"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Denoising Variational Auto-Encoder (DVAE) for binary classification in extremely low-data regimes."
 readme = "README.md"
 requires-python = ">=3.10,<3.13"
@@ -17,7 +17,6 @@ authors = [
     { name = "Radim Nedbal" }
 ]
 
-# --- Runtime dependencies (installed automatically when user installs the wheel) ---
 dependencies = [
     "numpy<2",
     "torch==2.2.2",
