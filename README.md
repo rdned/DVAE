@@ -14,7 +14,7 @@ Pyro/PyTorch implementation of the **Denoising Variational Auto‑Encoder (DVAE)
 
 DVAE is a neural network designed to classify binary data with very few labeled examples. It combines the power of Variational Auto-Encoders with denoising techniques to achieve robust classification in extremely low-data regimes.
 
-The classifier implementation is centered on the `VAE` class in `vae/vae.py`.
+The classifier implementation is centered on the `VAE` class in `dvae/vae.py`.
 
 ## Table of Contents
 
@@ -35,17 +35,33 @@ The classifier implementation is centered on the `VAE` class in `vae/vae.py`.
 
 ### Setup
 
-Clone the repository and install dependencies:
+Clone the repository:
 
 ```bash
 git clone https://github.com/rdned/DVAE.git
 cd DVAE
-pyenv install 3.12.12
+```
+
+Create a virtual environment using `pyenv` and install dependencies:
+
+```bash
+pyenv install 3.12.12 --skip-existing
 pyenv virtualenv 3.12.12 dvae-3.12.12
 pyenv local dvae-3.12.12
-pip install --upgrade pip setuptools wheel
-pip install -r requirements.txt
 ```
+
+Update packaging tools:
+
+```bash
+pip install --upgrade pip setuptools wheel
+```
+
+Install the package (editable mode):
+
+```bash
+pip install -e .
+```
+>This installs the dvae package and all runtime dependencies declared in pyproject.toml.
 
 ### Installation from Source
 
@@ -102,7 +118,7 @@ Option A — Pass the path directly:
 
 ```bash
 python - << 'EOF'
-from vae.utils import get_dataset_path
+from dvae.utils import get_dataset_path
 path = get_dataset_path("/absolute/path/to/DVAE/example/data/dataset1.json")
 print(path)
 EOF
@@ -118,55 +134,58 @@ Then in Python:
 
 ```bash
 python - << 'EOF'
-from vae.utils import get_dataset_path
+from dvae.utils import get_dataset_path
 print(get_dataset_path())
 EOF
 ```
 
-
 ## Quick Start
 
-To verify your installation, run the included example (requires an accessible dataset path):
+After installing DVAE, you can verify that the package is working by importing it
+and checking the version:
 
 ```bash
-python -m example.tests dataset1 --filetype npz
+python -c "import dvae; print(dvae.__version__)"
 ```
 
-Note: the example scripts require that you provide the dataset path (see the "Installation from Source" section above for instructions on supplying a dataset path or using the DATASET_PATH environment variable).
+>This confirms that the library and its runtime dependencies were installed correctly.
+For end‑to‑end usage examples (including dataset loading and model training),
+see the Installation from Source section. The example scripts and datasets
+are available only in a source checkout and are not included in the wheel.
 
 ## Repository Structure
 
 ```
 .
-├── CONTRIBUTING.md              # How to contribute, dev workflow, coding standards
-├── LICENSE                      # Project license
-├── README.md                    # Project overview, installation, usage
-├── pyproject.toml               # Single source of truth for runtime dependencies & metadata
-├── scratch-1.ipynb              # Exploratory notebook (not part of the package)
+├── CONTRIBUTING.md                 # Contribution guidelines and dev workflow
+├── LICENSE                         # License information
+├── README.md                       # Project overview and usage
+├── pyproject.toml                  # Project metadata and runtime dependencies
 │
-├── example/                     # Usage demonstrations and internal validation scripts
-│   ├── data/                    # Small example datasets for demos
+├── example/                        # Usage demonstrations and manual validation scripts
+│   ├── data/                       # Example datasets
 │   │   ├── dataset1.json
 │   │   ├── dataset1.npz
 │   │   ├── dataset2.json
 │   │   └── dataset2.npz
-│   └── tests.py                 # Manual example script (not part of automated tests)
+│   └── tests.py                    # Manual example script (not part of automated tests)
 │
-└── vae/                         # Main DVAE package
-    ├── __init__.py              # Package entry point
-    ├── _version.py              # Version management (e.g., via setuptools_scm)
-    ├── classifier.py            # Classifier built on top of the VAE
-    ├── vae.py                   # Core VAE implementation
-    │
-    ├── config/                  # Configuration modules
-    │   ├── __init__.py
-    │   └── hyperparameters.py   # Default hyperparameter definitions
-    │
-    └── utils/                   # Utility functions used across the package
-        ├── __init__.py
-        ├── custom_mlp.py        # Custom MLP architecture used by the VAE
-        ├── logger.py            # Lightweight logging utilities
-        └── utils.py             # Miscellaneous helpers
+└── src/                            # Source layout root (contains only packages)
+    └── dvae/                       # Main DVAE package (imported as `import dvae`)
+        ├── __init__.py             # Package entry point
+        ├── _version.py             # Version management
+        ├── classifier.py           # Classifier built on top of the VAE
+        ├── vae.py                  # Core VAE implementation
+        │
+        ├── config/                 # Configuration modules (internal)
+        │   ├── __init__.py
+        │   └── hyperparameters.py  # Default hyperparameter definitions
+        │
+        └── utils/                  # Utility functions (internal)
+            ├── __init__.py
+            ├── custom_mlp.py       # Custom MLP architecture used by the VAE
+            ├── logger.py           # Lightweight logging utilities
+            └── utils.py            # Miscellaneous helpers
 ```
 
 ## Usage Examples
@@ -221,7 +240,7 @@ python -m example.tests your_dataset --filetype npz
 
 ## Configuration
 
-Training and model hyperparameters are controlled in `vae/config/hyperparameters.py`.
+Training and model hyperparameters are controlled in `dvae/config/hyperparameters.py`.
 
 ### Key Configuration Sections
 
@@ -231,7 +250,7 @@ Training and model hyperparameters are controlled in `vae/config/hyperparameters
   * Bernoulli corruption rate (noise added during training)
   * Architectural parameters (hidden layer sizes, latent dimension)
 
-For detailed configuration options, see `vae/config/hyperparameters.py`.
+For detailed configuration options, see `dvae/config/hyperparameters.py`.
 
 
 ## Dependencies
