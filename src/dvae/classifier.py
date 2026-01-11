@@ -5,9 +5,9 @@ from sklearn.metrics import accuracy_score
 from sklearn.base import BaseEstimator, ClassifierMixin
 import scipy.sparse as ss
 
-from vae.vae import VAE
-from vae.config.hyperparameters import MINIBATCH_SIZE, N_EPOCHS_EVAL
-from vae.utils.logger import logger
+from dvae.vae import VAE
+from dvae.config.hyperparameters import MINIBATCH_SIZE, N_EPOCHS_EVAL
+from dvae.utils.logger import logger
 
 USE_CUDA = torch.cuda.is_available()
 

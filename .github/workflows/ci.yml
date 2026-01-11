@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        python-version: [3.10, 3.11, 3.12]
+        python-version: ["3.10", "3.11", "3.12"]
 
     steps:
       - name: Checkout repository
@@ -42,15 +42,15 @@ jobs:
         run: |
           python - << 'PY'
           try:
-              import vae
-              print('IMPORT_VAE_OK', getattr(vae, '__version__', 'unknown'))
+              import dvae
+              print('IMPORT_DVAE_OK', getattr(dvae, '__version__', 'unknown'))
           except Exception as e:
-              print('IMPORT_VAE_FAILED')
+              print('IMPORT_DVAE_FAILED')
               raise
 
           # Try importing classifier; it may fail if optional deps like torch are missing.
           try:
-              from vae.classifier import VAEClassifier
+              from dvae.classifier import VAEClassifier
               print('IMPORT_CLASSIFIER_OK')
           except Exception as e:
               import sys
@@ -58,7 +58,7 @@ jobs:
 
           # Ensure configuration subpackage is importable and contains hyperparameters
           try:
-              from vae.config import hyperparameters
+              from dvae.config import hyperparameters
               print('IMPORT_CONFIG_OK', hasattr(hyperparameters, 'MINIBATCH_SIZE'))
           except Exception as e:
               import sys

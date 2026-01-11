@@ -16,15 +16,32 @@ DVAE is a neural network designed to classify binary data with very few labeled 
 
 The classifier implementation is centered on the `VAE` class in `dvae/vae.py`.
 
+## Features
+
+- **Denoising Variational Auto‑Encoder (DVAE)** optimized for extremely low‑data binary classification  
+- **Pyro/PyTorch implementation** with reproducible training and inference  
+- **Integrated classifier head** built on top of the learned latent space  
+- **Configurable corruption (noise) model** for robust latent representations  
+- **Deterministic, pinned dependency versions** ensuring reproducible experiments  
+- **Modular architecture** (`vae.py`, `classifier.py`, `utils/`, `config/`) for easy extension  
+- **Example datasets and scripts** included for manual validation and experimentation  
+- **Wheel‑based reproducible build workflow** for clean packaging and isolated testing
+
 ## Table of Contents
 
 - [Installation](#installation)
 - [Quick Start](#quick-start)
-- [Repository Structure](#repository-structure)
 - [Usage Examples](#usage-examples)
+- [Installation from Source](#installation-from-source)
+- [Repository Structure](#repository-structure)
+- [Contributing](#contributing)
 - [Configuration](#configuration)
+- [Dependencies](#dependencies)
 - [Citation](#citation)
+- [Attribution](#attribution)
 - [License](#license)
+
+---
 
 ## Installation
 
@@ -50,7 +67,7 @@ pyenv virtualenv 3.12.12 dvae-3.12.12
 pyenv local dvae-3.12.12
 ```
 
-Update packaging tools:
+Update packaging tools (recommended):
 
 ```bash
 pip install --upgrade pip setuptools wheel
@@ -61,83 +78,10 @@ Install the package (editable mode):
 ```bash
 pip install -e .
 ```
+
 >This installs the dvae package and all runtime dependencies declared in pyproject.toml.
 
-### Installation from Source
-
-This project uses a two-directory workflow:
-
-- `DVAE/` — the source tree containing the Python package and build configuration
-- `dvae_test/` — a clean environment used to install and test the built wheel
-
-#### 1. Build the wheel (inside `DVAE/`)
-
-```bash
-cd DVAE
-pip install --upgrade build
-python -m build
-```
-
-This produces:
-
-```
-DVAE/dist/dvae-0.1.0-py3-none-any.whl
-```
-
-All runtime dependencies (NumPy < 2, PyTorch 2.2.2, Pyro 1.9.1, scikit‑learn 1.7.2) are encoded in the wheel metadata.
-
-#### 2. Create a clean test environment using pyenv (inside `dvae_test/`)
-
-```bash
-cd ../dvae_test
-pyenv virtualenv 3.12.12 dvae-test
-pyenv local dvae-test
-```
-
-#### 3. Install the wheel
-
-PyTorch requires NumPy to be present at install time. Install NumPy first, then PyTorch, then the wheel:
-
-```bash
-pip install ../DVAE/dist/dvae-0.1.0-py3-none-any.whl
-```
-Pip will automatically install the correct versions of:
-* NumPy (< 2)
-* PyTorch 2.2.2 (CPU build from PyPI)
-* Pyro 1.9.1
-* scikit‑learn 1.7.2
-
-For GPU builds, follow the official PyTorch instructions:
-https://pytorch.org/
-
-#### 4. Provide the dataset path explicitly
-
-The dataset is not bundled with the package. You must supply its location explicitly.
-
-Option A — Pass the path directly:
-
-```bash
-python - << 'EOF'
-from dvae.utils import get_dataset_path
-path = get_dataset_path("/absolute/path/to/DVAE/example/data/dataset1.json")
-print(path)
-EOF
-```
-
-Option B — Use an environment variable:
-
-```bash
-export DATASET_PATH=/absolute/path/to/DVAE/example/data/dataset1.json
-```
-
-Then in Python:
-
-```bash
-python - << 'EOF'
-from dvae.utils import get_dataset_path
-print(get_dataset_path())
-EOF
-```
+---
 
 ## Quick Start
 
@@ -150,43 +94,10 @@ python -c "import dvae; print(dvae.__version__)"
 
 >This confirms that the library and its runtime dependencies were installed correctly.
 For end‑to‑end usage examples (including dataset loading and model training),
-see the Installation from Source section. The example scripts and datasets
-are available only in a source checkout and are not included in the wheel.
+see the **Usage Examples** section. The example scripts and datasets are part of the repository but are not installed with the package. 
+To run them, clone the repo or download the source tarball.
 
-## Repository Structure
-
-```
-.
-├── CONTRIBUTING.md                 # Contribution guidelines and dev workflow
-├── LICENSE                         # License information
-├── README.md                       # Project overview and usage
-├── pyproject.toml                  # Project metadata and runtime dependencies
-│
-├── example/                        # Usage demonstrations and manual validation scripts
-│   ├── data/                       # Example datasets
-│   │   ├── dataset1.json
-│   │   ├── dataset1.npz
-│   │   ├── dataset2.json
-│   │   └── dataset2.npz
-│   └── tests.py                    # Manual example script (not part of automated tests)
-│
-└── src/                            # Source layout root (contains only packages)
-    └── dvae/                       # Main DVAE package (imported as `import dvae`)
-        ├── __init__.py             # Package entry point
-        ├── _version.py             # Version management
-        ├── classifier.py           # Classifier built on top of the VAE
-        ├── vae.py                  # Core VAE implementation
-        │
-        ├── config/                 # Configuration modules (internal)
-        │   ├── __init__.py
-        │   └── hyperparameters.py  # Default hyperparameter definitions
-        │
-        └── utils/                  # Utility functions (internal)
-            ├── __init__.py
-            ├── custom_mlp.py       # Custom MLP architecture used by the VAE
-            ├── logger.py           # Lightweight logging utilities
-            └── utils.py            # Miscellaneous helpers
-```
+---
 
 ## Usage Examples
 
@@ -238,6 +149,134 @@ This will:
 python -m example.tests your_dataset --filetype npz
 ```
 
+---
+
+## Installation from Source
+
+This project uses a two-directory workflow:
+
+- `DVAE/` — the source tree containing the Python package and build configuration
+- `dvae_test/` — a clean environment used to install and test the built wheel
+
+### 1. Build the wheel (inside `DVAE/`)
+
+```bash
+cd DVAE
+pip install --upgrade build
+python -m build
+```
+
+This produces:
+
+```
+DVAE/dist/dvae-0.1.0-py3-none-any.whl
+```
+
+All runtime dependencies (NumPy < 2, PyTorch 2.2.2, Pyro 1.9.1, scikit‑learn 1.7.2) are encoded in the wheel metadata.
+
+### 2. Create a clean test environment using pyenv (inside `dvae_test/`)
+
+```bash
+cd ../dvae_test
+pyenv virtualenv 3.12.12 dvae-test
+pyenv local dvae-test
+```
+
+### 3. Install the wheel
+
+PyTorch requires NumPy to be present at install time. Install NumPy first, then PyTorch, then the wheel:
+
+```bash
+pip install ../DVAE/dist/dvae-0.1.0-py3-none-any.whl
+```
+
+Pip will automatically install the correct versions of:
+
+* NumPy (< 2)
+* PyTorch 2.2.2 (CPU build from PyPI)
+* Pyro 1.9.1
+* scikit‑learn 1.7.2
+
+For GPU builds, follow the official PyTorch instructions:
+https://pytorch.org/
+
+### 4. Provide the dataset path explicitly
+
+The dataset is not bundled with the package. You must supply its location explicitly.
+
+Option A — Pass the path directly:
+
+```bash
+python - << 'EOF'
+from dvae.utils import get_dataset_path
+path = get_dataset_path("/absolute/path/to/DVAE/example/data/dataset1.json")
+print(path)
+EOF
+```
+
+Option B — Use an environment variable:
+
+```bash
+export DATASET_PATH=/absolute/path/to/DVAE/example/data/dataset1.json
+```
+
+Then in Python:
+
+```bash
+python - << 'EOF'
+from dvae.utils import get_dataset_path
+print(get_dataset_path())
+EOF
+```
+
+---
+
+## Repository Structure
+
+```
+.
+├── CHANGELOG.md                    # Version history following Keep a Changelog
+├── CONTRIBUTING.md                 # Contribution guidelines and dev workflow
+├── LICENSE                         # Project license (Apache-2.0 with your header)
+├── NOTICE                          # Third‑party attribution (Uber custom_mlp.py)
+├── README.md                       # Project overview and usage
+├── pyproject.toml                  # Project metadata and runtime dependencies
+│
+├── example/                        # Usage demonstrations and manual validation scripts
+│   ├── data/                       # Example datasets
+│   │   ├── dataset1.json
+│   │   ├── dataset1.npz
+│   │   ├── dataset2.json
+│   │   └── dataset2.npz
+│   └── tests.py                    # Manual example script (not part of automated tests)
+│
+└── src/                            # Source layout root (contains only packages)
+    └── dvae/                       # Main DVAE package (imported as `import dvae`)
+        ├── __init__.py             # Package entry point
+        ├── _version.py             # Version management
+        ├── classifier.py           # Classifier built on top of the VAE
+        ├── vae.py                  # Core VAE implementation
+        │
+        ├── config/                 # Configuration modules (internal)
+        │   ├── __init__.py
+        │   └── hyperparameters.py  # Default hyperparameter definitions
+        │
+        └── utils/                  # Utility functions (internal)
+            ├── __init__.py
+            ├── custom_mlp.py       # Custom MLP architecture (Uber, Apache-2.0)
+            ├── logger.py           # Lightweight logging utilities
+            └── utils.py            # Miscellaneous helpers
+```
+
+---
+
+## Contributing
+
+Contributions are welcome.  
+Please see the [CONTRIBUTING.md](CONTRIBUTING.md) file for guidelines, development workflow, and coding standards.
+
+---
+
 ## Configuration
 
 Training and model hyperparameters are controlled in `dvae/config/hyperparameters.py`.
@@ -252,6 +291,7 @@ Training and model hyperparameters are controlled in `dvae/config/hyperparameter
 
 For detailed configuration options, see `dvae/config/hyperparameters.py`.
 
+---
 
 ## Dependencies
 
@@ -261,6 +301,8 @@ This project pins exact versions for reproducibility. Key dependencies include:
 * torch 2.2.2 – Deep learning framework  
 * pyro-ppl 1.9.1 – Probabilistic programming library  
 * scikit-learn 1.7.2 – Machine learning utilities
+
+---
 
 ## Citation
 
@@ -284,6 +326,17 @@ Progress in Artificial Intelligence (submitted).
   url          = {https://github.com/rdned/DVAE}
 }
 ```
+
+---
+
+## Attribution
+
+DVAE includes code originally developed by Uber Technologies, Inc.
+The file src/dvae/utils/custom_mlp.py is licensed under the Apache License 2.0
+and is redistributed in accordance with its terms.
+See the accompanying NOTICE file for details.
+
+---
 
 ## License
 

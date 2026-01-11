@@ -14,10 +14,10 @@ import numpy as np
 import math
 import time
 
-from vae.utils.utils import asMinutes
-from vae.utils.logger import logger
-from vae.utils.custom_mlp import MLP
-from vae.config.hyperparameters import HIDDEN_DIM, Z_DIM, MINIBATCH_SIZE, SUBSAMPLE_RATIO, LR_ADAM, BETAS, ALPHA1, ALPHA2, BETA, BCP
+from dvae.utils.utils import asMinutes
+from dvae.utils.logger import logger
+from dvae.utils.custom_mlp import MLP
+from dvae.config.hyperparameters import HIDDEN_DIM, Z_DIM, MINIBATCH_SIZE, SUBSAMPLE_RATIO, LR_ADAM, BETAS, ALPHA1, ALPHA2, BETA, BCP
 
 print(f"Is cuda available? {torch.cuda.is_available()}")
 print(f"Cuda device count: {torch.cuda.device_count()}")
