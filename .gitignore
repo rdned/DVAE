@@ -214,3 +214,14 @@ __marimo__/
 
 # pyenv local version file
 .python-version
+
+# track only the source of the project documentation 
+docs/*
+!docs/usage.md
+!.keep
+
+# setuptools_scm generates this file during builds.
+# It must NOT be tracked, otherwise the working tree becomes dirty
+# and version tags (e.g., v0.1.1) will not produce clean release versions.
+src/dvae/_version.py
+

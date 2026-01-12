@@ -34,3 +34,19 @@ def get_dataset_path(path: str | Path | None = None) -> Path:
         )
 
     return dataset_path
+
+
+import numpy as np
+import torch
+import pyro
+
+def set_seed(seed: int):
+    """
+    Set RNG seeds for numpy, torch, and pyro.
+    """
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    try:
+        pyro.set_rng_seed(seed)
+    except Exception:
+        pass

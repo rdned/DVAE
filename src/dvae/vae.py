@@ -152,7 +152,7 @@ class VAE(nn.Module):
                 if _np_state is not None:
                     np.random.set_state(_np_state)
             except Exception:
-                pass
+                pass      
 
     # define the model p(x|z)p(z)
     # @config_enumerate
@@ -210,6 +210,28 @@ class VAE(nn.Module):
         x = batch_dict[self.encoder.name]
         z_loc, z_scale = self.encoder.forward(x)
         return self.decoder_x.forward(z_loc), z_loc
+    
+    def forward(self, x):
+        """
+        Forward pass for raw tensor input (not batch_dict).
+        Mirrors classify() + reconstruct_x() behavior.
+        """
+
+        # Encode
+        z_loc, z_scale = self.encoder(x)
+
+        # Decode label (classifier head)
+        y_loc = self.decoder(z_loc)
+
+        # Decode reconstruction
+        x_recon = self.decoder_x(z_loc)
+
+        return {
+            "z_loc": z_loc,
+            "z_scale": z_scale,
+            "y_loc": y_loc,        # classifier output
+            "x_recon": x_recon,    # reconstruction
+        }
 
     def infer_parameters(self, train_loader, num_epochs=40):
         prob_tensor_cache = {} 

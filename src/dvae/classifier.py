@@ -58,6 +58,21 @@ class VAEClassifier(BaseEstimator, ClassifierMixin):
         self.threshold_ = None
         self.is_fitted = False
 
+
+    @classmethod
+    def from_hparams(cls, h):
+        return cls(
+            feature_dim=h.input_dim,
+            alpha1=h.alpha1,
+            alpha2=h.alpha2,
+            beta=h.beta,
+            corruption=h.bcp,
+            z_dim=h.z_dim,
+            hidden_dim=h.hidden_dim,
+            seed=h.seed
+        )
+
+
     # -------------------------
     # Loader factory
     # -------------------------
@@ -327,3 +342,80 @@ class VAEClassifier(BaseEstimator, ClassifierMixin):
         """
         self.fit(X_train, y_train, **fit_kwargs)
         return self.predict_proba(X_test)
+
+    # -------------------------
+    # Persistence helpers
+    # -------------------------
+    def save(self, path: str):
+        """Save classifier minimal state to a file.
+
+        The saved file contains:
+        - VAE state_dict (on CPU)
+        - feature_dim, vae_kwargs
+        - classes_, threshold_, is_fitted
+
+        This avoids pickling problematic internals.
+        """
+        if self.vae is None:
+            raise RuntimeError("No VAE instance to save. Instantiate or fit the classifier first.")
+
+        # Ensure parameters are on CPU for portability
+        self.vae.cpu()
+
+        data = {
+            "vae_state": self.vae.state_dict(),
+            "feature_dim": self.feature_dim,
+            "vae_kwargs": self.vae_kwargs,
+            "classes_": getattr(self, "classes_", None),
+            "threshold_": getattr(self, "threshold_", None),
+            "is_fitted": getattr(self, "is_fitted", False),
+        }
+
+        torch.save(data, path)
+
+    @classmethod
+    def load(cls, path: str, device: str | None = "cpu") -> "VAEClassifier":
+        """Load a classifier saved with :meth:`save`.
+
+        Parameters
+        ----------
+        path : str
+            Path to the saved file (torch.save output).
+        device : str or torch.device, optional
+            Device to place the loaded VAE on. Use "cpu" or "cuda" (if available).
+
+        Returns
+        -------
+        VAEClassifier
+            A classifier with instantiated `vae` and loaded parameters.
+        """
+        # Load to CPU first for safety, then move to device
+        data = torch.load(path, map_location="cpu")
+
+        feature_dim = data["feature_dim"]
+        vae_kwargs = data.get("vae_kwargs") or {}
+
+        clf = cls(feature_dim=feature_dim, **(vae_kwargs or {}))
+
+        # instantiate VAE and load state
+        clf.vae = VAE(clf.feature_dim, **(clf.vae_kwargs or {}))
+        clf.vae.load_state_dict(data["vae_state"])
+
+        # restore metadata
+        clf.classes_ = data.get("classes_")
+        clf.threshold_ = data.get("threshold_")
+        clf.is_fitted = data.get("is_fitted", True)
+
+        # move to requested device if not cpu
+        if device is not None and str(device) != "cpu":
+            # allow 'cuda' or torch.device
+            if str(device).startswith("cuda") and torch.cuda.is_available():
+                clf.vae.cuda()
+            else:
+                try:
+                    clf.vae.to(device)
+                except Exception:
+                    # fallback: do nothing
+                    pass
+
+        return clf

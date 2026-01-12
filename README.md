@@ -241,6 +241,9 @@ EOF
 ├── NOTICE                          # Third‑party attribution (Uber custom_mlp.py)
 ├── README.md                       # Project overview and usage
 ├── pyproject.toml                  # Project metadata and runtime dependencies
+│                  
+├── docs/                           # Project documentation (source only)
+│    └── usage.md                   # DVAE usage guide  
 │
 ├── example/                        # Usage demonstrations and manual validation scripts
 │   ├── data/                       # Example datasets
