@@ -184,8 +184,6 @@ pyenv local dvae-test
 
 ### 3. Install the wheel
 
-PyTorch requires NumPy to be present at install time. Install NumPy first, then PyTorch, then the wheel:
-
 ```bash
 pip install ../DVAE/dist/dvae-0.1.0-py3-none-any.whl
 ```

@@ -27,6 +27,8 @@ def shuffle_split(X, y, tr_sz=10, random_state=42):
     :return: dict(encoder=train_2Darray, labels=labels),
              dict(encoder=test_2Darray, labels=labels)
     """
+    if X is None or y is None:
+        raise ValueError("X and y cannot be None")
     X_shuffled, y_shuffled = shuffle(X, y, random_state=random_state)
     labels = np.array(y_shuffled, dtype=bool)
     train_idx = np.hstack((np.where(labels)[0][:tr_sz], np.where(~labels)[0][:tr_sz]))

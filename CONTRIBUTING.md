@@ -4,7 +4,10 @@ Thanks for your interest in contributing to DVAE.
 
 ## Development setup
 
-Create a local virtual environment and install the package for development:
+Create a local virtual environment and install the package for development. 
+
+* Using `pyenv virtualenv` is described in Subsect. Setup in Sect. Installation in README.md.
+* Alternatively, using `venv`:
 
 ```bash
 python -m venv .venv
@@ -67,7 +70,7 @@ Avoid pickling the whole model object with `pickle.dump(model, f)` as it is frag
 
 ## Building locally
 
-To build a wheel and source distribution locally:
+To build a wheel and source distribution locally refer to README.md Sect. Installation from Source. In brief:
 
 ```bash
 pip install --upgrade build
@@ -76,13 +79,91 @@ python -m build
 pip install dist/*.whl
 ```
 
-## Publishing
+## Release & tagging workflow (setuptools_scm)
 
-We do not publish automatically. Use `twine` to upload to TestPyPI or PyPI after creating an account and generating an API token.
+>DVAE uses setuptools_scm, which derives the version entirely from Git tags.
+>No version numbers are stored in the source tree.
+>Every release must follow this deterministic workflow. 
+
+### 1. Ensure a cleen working tree
+
+```bash
+git status -s
+```
+
+### 2. Choose the next version
+
+```vMAJOR.MINOR.PATCH```, e.g., ```v0.2.1```
+
+### 3. Commit all release‑relevant changes
+
+```bash
+git add -A
+git commit -m "Release v0.1.2"
+```
+
+### 4. Tag the release commit
+
+* Tags must point to HEAD, not a previous commit.
+
+```bash
+git tag v0.1.2
+```
+
+* Verify the tag:
+
+```bash
+git show v0.1.2
+git rev-parse HEAD
+```
+
+>The commit hashes must match.
+
+
+### 5. Build the release artifacts
+
+```bash
+rm -rf dist/
+python -m build
+```
+
+* Expected output in `dist/`:
+
+```
+dvae-0.1.2-py3-none-any.whl
+dvae-0.1.2.tar.gz
+```
+
+>If you see a version like 0.1.3.dev0+gHASH, the working tree is dirty or the tag is not on HEAD.
+
+### 6  (Optional) Upload to TestPyPI
 
 ```bash
 pip install --upgrade twine
 twine upload --repository testpypi dist/*
-# test installation
-pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple dvae
+```
+
+* Test installation in a fresh virtual environment:
+
+```bash
+cd new_test_dir
+python -m venv .venv-test
+source .venv-test/bin/activate
+pip install \
+  --index-url https://test.pypi.org/simple \
+  --extra-index-url https://pypi.org/simple \
+  dvae==0.1.2
+```
+
+### 7. Upload to PyPI
+
+```bash
+twine upload dist/*
+```
+
+### 8. Push the release commit and tag
+
+```bash
+git push
+git push --tags
 ```

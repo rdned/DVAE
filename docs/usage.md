@@ -161,36 +161,67 @@ print(out.keys())
 
 ## 11. Saving and Loading
 
-* Save the classifier (recommended): prefer the `save` helper which writes a CPU‑safe state dict and metadata. Avoid pickling the entire classifier object with `pickle.dump` (fragile and often fails due to non‑pickleable internals).
+> Preferred: use the classifier helpers (recommended). The helpers write a CPU‑safe state dict and minimal metadata and will move the VAE to CPU for portability.
+
+### Train then save
 
 ```python
-# Preferred: saves state_dict + metadata in a portable way
-clf.save("clf.pth")
+from dvae import VAEClassifier
+import numpy as np
+
+# Synthetic data
+X = np.random.randn(100, 10)
+y = np.random.randint(0, 2, size=100)
+
+# Create and train (this instantiates clf.vae)
+clf = VAEClassifier(feature_dim=10, z_dim=3)
+clf.fit(X, y, num_epochs=10)
+
+# Save trained classifier (saved file includes state_dict + metadata)
+clf.save("clf_trained.pth")
 ```
 
-* Save the underlying VAE weights (recommended):
+### Instantiate VAE then save (untrined model)
+
+* to save an untrained but initialized classifier, instantiate clf.vae explicitly:
+
+```python
+from dvae import VAEClassifier
+from dvae.vae import VAE
+
+clf = VAEClassifier(feature_dim=10, z_dim=3)
+# instantiate the VAE model inside the classifier
+clf.vae = VAE(clf.feature_dim, **(clf.vae_kwargs or {}))
+
+# Now save (works because clf.vae exists)
+clf.save("clf_untrained.pth")
+```
+
+### Load back
+
+```python
+# Load back (on CPU) trained or untrained classifier saved with `save()`
+clf2 = VAEClassifier.load("clf_trained.pth", device="cpu")  
+```
+
+### Save only the underlying VAE weights (no metadata):
 
 ```python
 import torch
-torch.save(model.vae.state_dict(), "vae.pt")
+# save VAE weights (CPU-safe)
+torch.save(clf.vae.state_dict(), "vae.pt")
 ```
 
-* Load (map to CPU or chosen device):
+### Load saved VAE weights into an existing classifier:
 
 ```python
 state = torch.load("vae.pt", map_location="cpu")
-model.vae.load_state_dict(state)
+# if needed, instantiate VAE before loading: 
+# clf.vae = VAE(clf.feature_dim, **(clf.vae_kwargs or {}))
+clf.vae.load_state_dict(state)
 ```
 
-* Preferred: use the classifier helpers to save and load the full classifier state:
-
-```python
-# Save full classifier (state dict + metadata)
-clf.save("clf.pth")
-
-# Load (placed on CPU)
-clf2 = VAEClassifier.load("clf.pth", device="cpu")
-```
+**Note:** Avoid pickling the whole classifier object with `pickle.dump(model, f)` — this is fragile and frequently fails due to non‑pickleable internals (PyTorch/Pyro/logging objects). Use the `save()` helper or the state‑dict approach above instead.
 
 ---
 
