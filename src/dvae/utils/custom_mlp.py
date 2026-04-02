@@ -79,15 +79,16 @@ class MLP(nn.Module):
     """
 
     def __init__(
-            self,
-            name,
-            mlp_sizes,
-            activation=nn.ReLU,
-            output_activation=None,
-            post_layer_fct=lambda layer_ix, total_layers, layer: None,
-            post_act_fct=lambda layer_ix, total_layers, layer: None,
-            allow_broadcast=False,
-            use_cuda=False):
+        self,
+        name,
+        mlp_sizes,
+        activation=nn.ReLU,
+        output_activation=None,
+        post_layer_fct=lambda layer_ix, total_layers, layer: None,
+        post_act_fct=lambda layer_ix, total_layers, layer: None,
+        allow_broadcast=False,
+        use_cuda=False,
+    ):
         """
         Args:
             name (str): Name identifier for the module.
@@ -140,7 +141,9 @@ class MLP(nn.Module):
             all_modules.append(cur_linear_layer)
 
             # 1. Handle post_linear callback (e.g., Batch Normalization)
-            post_linear = post_layer_fct(layer_ix + 1, len(hidden_sizes), all_modules[-1])
+            post_linear = post_layer_fct(
+                layer_ix + 1, len(hidden_sizes), all_modules[-1]
+            )
             if post_linear is not None:
                 all_modules.append(post_linear)
 
@@ -148,7 +151,9 @@ class MLP(nn.Module):
             all_modules.append(activation())
 
             # 3. Handle post_activation callback (e.g., Dropout)
-            post_activation = post_act_fct(layer_ix + 1, len(hidden_sizes), all_modules[-1])
+            post_activation = post_act_fct(
+                layer_ix + 1, len(hidden_sizes), all_modules[-1]
+            )
             if post_activation is not None:
                 print(f"Adding post activation layer: {post_activation}")
                 all_modules.append(post_activation)
@@ -208,9 +213,10 @@ class MLP(nn.Module):
         # Applies specific initialization rule to all Linear layers in the model
         def weights_init_uniform_rule(m):
             import numpy as np
+
             classname = m.__class__.__name__
             # Apply to Linear layers only
-            if classname.find('Linear') != -1:
+            if classname.find("Linear") != -1:
                 n = m.in_features
                 y = 1.0 / np.sqrt(n)
                 # Uniform initialization based on input size

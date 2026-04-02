@@ -42,6 +42,7 @@ Z_DIM = 80
 
 from dataclasses import dataclass
 
+
 @dataclass
 class Hyperparameters:
     # -----------------------------
@@ -93,6 +94,7 @@ class Hyperparameters:
     latent_dim: int = Z_DIM  # alias
 
     seed: int = None
+
 
 def default_hparams() -> Hyperparameters:
     """Return a fresh Hyperparameters object with default values."""

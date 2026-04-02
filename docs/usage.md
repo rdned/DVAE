@@ -25,9 +25,9 @@ print("DVAE version:", dvae.__version__)
 
 DVAE provides:
 
-- **VAEClassifier** — a variational autoencoder with a classifier head  
-- **Configuration system** — structured hyperparameters with explicit provenance  
-- **Utilities** — helpers for training, evaluation, and reproducibility  
+- **VAEClassifier** — a variational autoencoder with a classifier head
+- **Configuration system** — structured hyperparameters with explicit provenance
+- **Utilities** — helpers for training, evaluation, and reproducibility
 
 The public API is intentionally small and explicit.
 
@@ -201,7 +201,7 @@ clf.save("clf_untrained.pth")
 
 ```python
 # Load back (on CPU) trained or untrained classifier saved with `save()`
-clf2 = VAEClassifier.load("clf_trained.pth", device="cpu")  
+clf2 = VAEClassifier.load("clf_trained.pth", device="cpu")
 ```
 
 ### Save only the underlying VAE weights (no metadata):
@@ -216,7 +216,7 @@ torch.save(clf.vae.state_dict(), "vae.pt")
 
 ```python
 state = torch.load("vae.pt", map_location="cpu")
-# if needed, instantiate VAE before loading: 
+# if needed, instantiate VAE before loading:
 # clf.vae = VAE(clf.feature_dim, **(clf.vae_kwargs or {}))
 clf.vae.load_state_dict(state)
 ```
@@ -248,7 +248,7 @@ set_seed(123)
 # Hyperparameters
 h = hyperparameters.default_hparams()
 h.input_dim = 10
-h.z_dim = 4  # prefer canonical `z_dim` (alias: `latent_dim`) 
+h.z_dim = 4  # prefer canonical `z_dim` (alias: `latent_dim`)
 
 # Classifier
 clf = VAEClassifier.from_hparams(h)
@@ -275,17 +275,17 @@ print(out.keys())
 
 ## 14. Troubleshooting
 
-**ImportError: cannot import name 'VAEClassifier'**  
+**ImportError: cannot import name 'VAEClassifier'**
 Reinstall DVAE:
 
 ```bash
 pip install --upgrade dvae
 ```
 
-**Shape mismatch errors**  
+**Shape mismatch errors**
 Ensure `input_dim` matches your data.
 
-**CUDA not used**  
+**CUDA not used**
 `VAE` moves itself to CUDA during construction when available. To manually move, do:
 
 ```python
@@ -293,12 +293,12 @@ model.vae.cuda()
 x = x.cuda()
 ```
 
-**Binary classification only**  
+**Binary classification only**
 `VAEClassifier` currently supports only binary classification (two classes). `predict()` will raise an error otherwise.
 
 ---
 
 ## 15. License
 
-DVAE is released under the Apache License 2.0.  
+DVAE is released under the Apache License 2.0.
 See the `LICENSE` file for the full text.

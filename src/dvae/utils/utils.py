@@ -40,6 +40,7 @@ import numpy as np
 import torch
 import pyro
 
+
 def set_seed(seed: int):
     """
     Set RNG seeds for numpy, torch, and pyro.

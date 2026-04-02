@@ -17,29 +17,42 @@ import time
 from dvae.utils.utils import asMinutes
 from dvae.utils.logger import logger
 from dvae.utils.custom_mlp import MLP
-from dvae.config.hyperparameters import HIDDEN_DIM, Z_DIM, MINIBATCH_SIZE, SUBSAMPLE_RATIO, LR_ADAM, BETAS, ALPHA1, ALPHA2, BETA, BCP
+from dvae.config.hyperparameters import (
+    HIDDEN_DIM,
+    Z_DIM,
+    MINIBATCH_SIZE,
+    SUBSAMPLE_RATIO,
+    LR_ADAM,
+    BETAS,
+    ALPHA1,
+    ALPHA2,
+    BETA,
+    BCP,
+)
 
 print(f"Is cuda available? {torch.cuda.is_available()}")
 print(f"Cuda device count: {torch.cuda.device_count()}")
 if torch.cuda.is_available():
-    print(f"Cuda device name: {torch.cuda.get_device_name()}") # with an argument? torch.cuda.get_device_name(0)
+    print(
+        f"Cuda device name: {torch.cuda.get_device_name()}"
+    )  # with an argument? torch.cuda.get_device_name(0)
 
 # setting device on GPU if available, else CPU
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print('Using device:', device)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print("Using device:", device)
 USE_CUDA = True if torch.cuda.is_available() else False
 
 # Additional Info when using cuda
-if device.type == 'cuda':
+if device.type == "cuda":
     print(torch.cuda.get_device_name(0))
-    print('Memory Usage:')
-    print('Allocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
-    print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
+    print("Memory Usage:")
+    print("Allocated:", round(torch.cuda.memory_allocated(0) / 1024**3, 1), "GB")
+    print("Cached:   ", round(torch.cuda.memory_reserved(0) / 1024**3, 1), "GB")
 
 TH_PRED = 0.5  # threshold for binarizing the predicion: [0,1] --> {0,1}
 
 print(f"Pyro version: {pyro.__version__}")
-#assert pyro.__version__.startswith('1.7.0')
+# assert pyro.__version__.startswith('1.7.0')
 pyro.enable_validation(True)
 pyro.set_rng_seed(101)
 
@@ -65,14 +78,24 @@ class Y_loc(nn.Module):
         super().__init__()
 
     def forward(self, x):
-        loc_y = torch.tanh(x) / 2 + .5
+        loc_y = torch.tanh(x) / 2 + 0.5
         loc_y = loc_y.squeeze(-1)
         return loc_y
 
 
 # define a PyTorch module for the VAE
 class VAE(nn.Module):
-    def __init__(self, feature_dim, alpha1=ALPHA1, alpha2=ALPHA2, beta=BETA, corruption=BCP, z_dim=Z_DIM, hidden_dim=HIDDEN_DIM, seed: int=None):
+    def __init__(
+        self,
+        feature_dim,
+        alpha1=ALPHA1,
+        alpha2=ALPHA2,
+        beta=BETA,
+        corruption=BCP,
+        z_dim=Z_DIM,
+        hidden_dim=HIDDEN_DIM,
+        seed: int = None,
+    ):
         """VAE constructor.
 
         If `seed` is provided, the RNG state (numpy, torch, pyro) will be temporarily
@@ -104,16 +127,28 @@ class VAE(nn.Module):
             restore_rng = True
 
         self.use_cuda = USE_CUDA
-        self.alpha1=alpha1
-        self.alpha2=alpha2
-        self.beta=beta
-        self.corruption=corruption
+        self.alpha1 = alpha1
+        self.alpha2 = alpha2
+        self.beta = beta
+        self.corruption = corruption
         self.z_dim = z_dim
         self.feature_dim = feature_dim
 
+        # Support scalar and list hidden_dim values for compatibility with both
+        # old configuration (int) and sklearn-style API usage (list).
+        if isinstance(hidden_dim, (list, tuple)):
+            hidden_dim_list = [int(h) for h in hidden_dim]
+            if len(hidden_dim_list) == 0:
+                raise ValueError("hidden_dim must be a non-empty list or int")
+            hidden_dim_scalar = hidden_dim_list[-1]
+            encoder_hidden = hidden_dim_list
+        else:
+            hidden_dim_scalar = int(hidden_dim)
+            encoder_hidden = [8 * hidden_dim_scalar]
+
         self.encoder = MLP(
-            name = 'encoder',
-            mlp_sizes = [feature_dim] + [8*hidden_dim] + [[z_dim, z_dim]],
+            name="encoder",
+            mlp_sizes=[feature_dim] + encoder_hidden + [[z_dim, z_dim]],
             activation=nn.Softplus,
             output_activation=[Z_loc, Z_scale],
             post_act_fct=lambda layer_ix, total_layers, layer: None,
@@ -122,8 +157,10 @@ class VAE(nn.Module):
         )
 
         self.decoder = MLP(
-            name = "decoder",
-            mlp_sizes= [z_dim] + [hidden_dim//2, hidden_dim//4] + [1],
+            name="decoder",
+            mlp_sizes=[z_dim]
+            + [max(1, hidden_dim_scalar // 2), max(1, hidden_dim_scalar // 4)]
+            + [1],
             activation=nn.Softplus,
             output_activation=Y_loc,
             post_act_fct=lambda layer_ix, total_layers, layer: None,
@@ -131,8 +168,8 @@ class VAE(nn.Module):
             use_cuda=self.use_cuda,
         )
         self.decoder_x = MLP(
-            name = "decoder_x",
-            mlp_sizes = [z_dim] + [hidden_dim] + [feature_dim],
+            name="decoder_x",
+            mlp_sizes=[z_dim] + [hidden_dim_scalar] + [feature_dim],
             activation=nn.Softplus,
             output_activation=None,
             post_act_fct=lambda layer_ix, total_layers, layer: None,
@@ -152,7 +189,7 @@ class VAE(nn.Module):
                 if _np_state is not None:
                     np.random.set_state(_np_state)
             except Exception:
-                pass      
+                pass
 
     # define the model p(x|z)p(z)
     # @config_enumerate
@@ -165,33 +202,41 @@ class VAE(nn.Module):
             with pyro.poutine.scale(scale=self.beta):
                 Z = pyro.sample(
                     f"latent_{self.encoder.name}",
-                    dist.MultivariateNormal(z_loc, torch.eye(self.z_dim))
-                    )
+                    dist.MultivariateNormal(z_loc, torch.eye(self.z_dim)),
+                )
         loc_y = self.decoder.forward(Z)
         loc_x = self.decoder_x.forward(Z)
         with data_axis as ind:
             with pyro.poutine.scale(scale=self.alpha2):
-                pyro.sample("obs",
-                        dist.Bernoulli(loc_y),  # .to_event(1),
-                        infer={"enumerate": "sequential"},
-                        obs=batch_dict['labels'].float().index_select(0, ind).detach()
+                pyro.sample(
+                    "obs",
+                    dist.Bernoulli(loc_y),  # .to_event(1),
+                    infer={"enumerate": "sequential"},
+                    obs=batch_dict["labels"].float().index_select(0, ind).detach(),
                 )
             with pyro.poutine.scale(scale=self.alpha1):
                 eye_matrix = torch.eye(self.feature_dim, device=loc_x.device)
                 pyro.sample(
                     "reconstruct_x",
                     dist.MultivariateNormal(loc_x, eye_matrix),
-                    obs=batch_dict['encoder'].squeeze().float().index_select(0, ind).detach()
+                    obs=batch_dict["encoder"]
+                    .squeeze()
+                    .float()
+                    .index_select(0, ind)
+                    .detach(),
                 )
 
     # define the guide (i.e. variational distribution) q(z|x)
     def guide(self, batch_dict, sample_size):
-        baseline_dict = {'use_decaying_avg_baseline': True,
-                         'baseline_beta': 0.85}
+        baseline_dict = {"use_decaying_avg_baseline": True, "baseline_beta": 0.85}
         pyro.module(self.encoder.name, self.encoder)
-        subsample_size = sample_size // SUBSAMPLE_RATIO if sample_size >= 10 * SUBSAMPLE_RATIO else sample_size
+        subsample_size = (
+            sample_size // SUBSAMPLE_RATIO
+            if sample_size >= 10 * SUBSAMPLE_RATIO
+            else sample_size
+        )
         with pyro.plate("data", sample_size, subsample_size=subsample_size) as ind:
-            x = batch_dict['corr_'+self.encoder.name]
+            x = batch_dict["corr_" + self.encoder.name]
             if ind is not None:
                 x = x.index_select(0, ind)
             z_loc, z_scale = self.encoder.forward(x)
@@ -210,7 +255,7 @@ class VAE(nn.Module):
         x = batch_dict[self.encoder.name]
         z_loc, z_scale = self.encoder.forward(x)
         return self.decoder_x.forward(z_loc), z_loc
-    
+
     def forward(self, x):
         """
         Forward pass for raw tensor input (not batch_dict).
@@ -229,36 +274,38 @@ class VAE(nn.Module):
         return {
             "z_loc": z_loc,
             "z_scale": z_scale,
-            "y_loc": y_loc,        # classifier output
-            "x_recon": x_recon,    # reconstruction
+            "y_loc": y_loc,  # classifier output
+            "x_recon": x_recon,  # reconstruction
         }
 
     def infer_parameters(self, train_loader, num_epochs=40):
-        prob_tensor_cache = {} 
+        prob_tensor_cache = {}
 
         def corrupt(X, p):
             if p > 0:
                 dixs, wixs = X.nonzero(as_tuple=True)
                 mask = torch.zeros_like(X)
-                    
+
                 # Check if we already created the tensor for this device
                 if X.device not in prob_tensor_cache:
                     prob_tensor_cache[X.device] = torch.tensor([1 - p], device=X.device)
-                    
-                mask[dixs, wixs] = dist.Bernoulli(prob_tensor_cache[X.device]).expand([len(dixs)]).sample()
+
+                mask[dixs, wixs] = (
+                    dist.Bernoulli(prob_tensor_cache[X.device])
+                    .expand([len(dixs)])
+                    .sample()
+                )
                 return X * mask
             else:
                 logger.debug("No Bernoulli corruption!!")
                 return X
-            
+
         logger.debug("Starting training!")
         start = time.time()
         pyro.clear_param_store()
 
         # setup the optimizer
-        adam_args = {"lr": LR_ADAM,
-                     "betas": BETAS
-                     }
+        adam_args = {"lr": LR_ADAM, "betas": BETAS}
         optimizer = AdamW(adam_args)
         elbo = JitTraceGraph_ELBO(
             strict_enumeration_warning=False,
@@ -269,34 +316,41 @@ class VAE(nn.Module):
 
         perfect_tr = []
         for epoch in range(num_epochs):
-            epoch_loss = 0.
+            epoch_loss = 0.0
             if epoch > 0:
                 pred_train_old = pred_train.copy()
             pred_train, labels_train = [], []
 
             for batch_dict in train_loader:
                 # if on GPU put mini-batch into CUDA memory
-                batch_dict['corr_' + self.encoder.name] = corrupt(batch_dict[self.encoder.name], self.corruption)
+                batch_dict["corr_" + self.encoder.name] = corrupt(
+                    batch_dict[self.encoder.name], self.corruption
+                )
                 if self.use_cuda:
                     batch_dict[self.encoder.name] = batch_dict[self.encoder.name].cuda()
-                    batch_dict['corr_'+self.encoder.name] = batch_dict['corr_'+self.encoder.name].cuda()
+                    batch_dict["corr_" + self.encoder.name] = batch_dict[
+                        "corr_" + self.encoder.name
+                    ].cuda()
                 try:
-                    epoch_loss += svi.step(batch_dict, sample_size=batch_dict['labels'].size(0)) / \
-                                  (N_data * MINIBATCH_SIZE // SUBSAMPLE_RATIO)
+                    epoch_loss += svi.step(
+                        batch_dict, sample_size=batch_dict["labels"].size(0)
+                    ) / (N_data * MINIBATCH_SIZE // SUBSAMPLE_RATIO)
                 except Exception as err:
-                    logger.debug(f"The batch that causes problems has length "
-                                 f"{batch_dict['labels'].size(0)}: {err}")
+                    logger.debug(
+                        f"The batch that causes problems has length "
+                        f"{batch_dict['labels'].size(0)}: {err}"
+                    )
                 if math.isnan(epoch_loss):
                     logger.debug(f"Incorrect hyperparameters")
                     return pred_train_old
 
                 pred_tr = self.classify(batch_dict)
                 pred_train.append(pred_tr.detach().cpu().numpy())
-                labels_train.append(batch_dict['labels'].detach().cpu().numpy())
+                labels_train.append(batch_dict["labels"].detach().cpu().numpy())
 
             score_train = np.concatenate(pred_train, axis=0)
             labels_train = np.concatenate(labels_train, axis=0)
-            acc_tr = round(accuracy_score(labels_train, score_train > TH_PRED)*100, 3)
+            acc_tr = round(accuracy_score(labels_train, score_train > TH_PRED) * 100, 3)
 
             if acc_tr > 99.5:
                 perfect_tr.append(acc_tr)

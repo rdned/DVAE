@@ -11,6 +11,7 @@ from dvae.utils.logger import logger
 
 USE_CUDA = torch.cuda.is_available()
 
+
 class VAEClassifier(BaseEstimator, ClassifierMixin):
     """
     A full sklearn‑style classifier wrapper around the VAE.
@@ -58,7 +59,6 @@ class VAEClassifier(BaseEstimator, ClassifierMixin):
         self.threshold_ = None
         self.is_fitted = False
 
-
     @classmethod
     def from_hparams(cls, h):
         return cls(
@@ -69,9 +69,8 @@ class VAEClassifier(BaseEstimator, ClassifierMixin):
             corruption=h.bcp,
             z_dim=h.z_dim,
             hidden_dim=h.hidden_dim,
-            seed=h.seed
+            seed=h.seed,
         )
-
 
     # -------------------------
     # Loader factory
@@ -100,7 +99,7 @@ class VAEClassifier(BaseEstimator, ClassifierMixin):
             Target labels.
         num_epochs : int, optional (default=N_EPOCHS_EVAL)
             Number of training epochs.
-        Returns 
+        Returns
         -------
         self : object
             Returns self.
@@ -134,23 +133,22 @@ class VAEClassifier(BaseEstimator, ClassifierMixin):
     def _propose_threshold(self, score_train, labels_train):
         """
         Propose threshold based on training scores and labels.
-        
+
         Parameters
         ----------
         score_train : array-like, shape (n_samples,)
             Prediction scores in [0, 1].
         labels_train : array-like, shape (n_samples,)
-            True labels.            
+            True labels.
         Returns
         -------
         th : float
             Optimal threshold.
         """
         thresholds = np.arange(0.05, 0.95, 0.05)
-        accs = np.array([
-            accuracy_score(labels_train, score_train >= th)
-            for th in thresholds
-        ])
+        accs = np.array(
+            [accuracy_score(labels_train, score_train >= th) for th in thresholds]
+        )
         best = np.max(accs)
         best_idxs = np.where(accs == best)[0]
 
@@ -207,7 +205,9 @@ class VAEClassifier(BaseEstimator, ClassifierMixin):
         if not hasattr(self, "classes_"):
             raise RuntimeError("Call fit(...) before predict(...).")
         if len(self.classes_) != 2:
-            raise RuntimeError("VAEClassifier supports only binary classification (2 classes).")
+            raise RuntimeError(
+                "VAEClassifier supports only binary classification (2 classes)."
+            )
 
         # Use fitted threshold if present, otherwise default to 0.5
         if not hasattr(self, "threshold_") or self.threshold_ is None:
@@ -357,7 +357,9 @@ class VAEClassifier(BaseEstimator, ClassifierMixin):
         This avoids pickling problematic internals.
         """
         if self.vae is None:
-            raise RuntimeError("No VAE instance to save. Instantiate or fit the classifier first.")
+            raise RuntimeError(
+                "No VAE instance to save. Instantiate or fit the classifier first."
+            )
 
         # Ensure parameters are on CPU for portability
         self.vae.cpu()

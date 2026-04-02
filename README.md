@@ -7,7 +7,7 @@
 
 Pyro/PyTorch implementation of the **Denoising Variational Auto‑Encoder (DVAE)** for binary classification in extremely low‑data regimes, based on the paper:
 
-> *Harnessing Variational Auto‑Encoder for Binary Classification in Extremely Low Data Regime*  
+> *Harnessing Variational Auto‑Encoder for Binary Classification in Extremely Low Data Regime*
 > Radim Nedbal and Babak Mahdian (2025), submitted to *Progress in Artificial Intelligence*.
 
 ## Overview
@@ -18,13 +18,13 @@ The classifier implementation is centered on the `VAE` class in `dvae/vae.py`.
 
 ## Features
 
-- **Denoising Variational Auto‑Encoder (DVAE)** optimized for extremely low‑data binary classification  
-- **Pyro/PyTorch implementation** with reproducible training and inference  
-- **Integrated classifier head** built on top of the learned latent space  
-- **Configurable corruption (noise) model** for robust latent representations  
-- **Deterministic, pinned dependency versions** ensuring reproducible experiments  
-- **Modular architecture** (`vae.py`, `classifier.py`, `utils/`, `config/`) for easy extension  
-- **Example datasets and scripts** included for manual validation and experimentation  
+- **Denoising Variational Auto‑Encoder (DVAE)** optimized for extremely low‑data binary classification
+- **Pyro/PyTorch implementation** with reproducible training and inference
+- **Integrated classifier head** built on top of the learned latent space
+- **Configurable corruption (noise) model** for robust latent representations
+- **Deterministic, pinned dependency versions** ensuring reproducible experiments
+- **Modular architecture** (`vae.py`, `classifier.py`, `utils/`, `config/`) for easy extension
+- **Example datasets and scripts** included for manual validation and experimentation
 - **Wheel‑based reproducible build workflow** for clean packaging and isolated testing
 
 ## Table of Contents
@@ -94,7 +94,7 @@ python -c "import dvae; print(dvae.__version__)"
 
 >This confirms that the library and its runtime dependencies were installed correctly.
 For end‑to‑end usage examples (including dataset loading and model training),
-see the **Usage Examples** section. The example scripts and datasets are part of the repository but are not installed with the package. 
+see the **Usage Examples** section. The example scripts and datasets are part of the repository but are not installed with the package.
 To run them, clone the repo or download the source tarball.
 
 ---
@@ -139,6 +139,21 @@ This will:
 3. Run training and evaluation across multiple training set sizes
 4. Print corresponding accuracies
 
+### Python / pyenv environment (recommended)
+
+DVAE supports only Python 3.10 and 3.11. Python 3.12 and above is explicitly unsupported due to known PyTorch 2.2.2 runtime issues.
+
+Preferred setup:
+
+```bash
+pyenv install 3.11.3 --skip-existing
+pyenv virtualenv 3.11.3 dvae-3.11.3
+pyenv local dvae-3.11.3
+pip install -e .
+```
+
+If you run these commands with 3.12 (for some reason), the package will now raise a runtime error at import, and `pyproject.toml` + README are explicit that this is not a supported target.
+
 ### Using Your Own Dataset
 
 1. Prepare your data in JSON or NPZ format (see Data Format section above)
@@ -149,7 +164,54 @@ This will:
 python -m example.tests your_dataset --filetype npz
 ```
 
+### Scikit-learn-style API (`VAEClassifier`)
+
+`VAEClassifier` in `dvae/classifier.py` follows the sklearn API (fit/predict/predict_proba/transform).
+
+Example usage:
+
+```python
+import numpy as np
+from dvae.classifier import VAEClassifier
+
+# synthetic binary data
+rng = np.random.RandomState(42)
+X = rng.randn(100, 8).astype(np.float32)
+y = (X[:, 0] + 0.5 * X[:, 1] > 0).astype(int)
+
+clf = VAEClassifier(
+    feature_dim=8,
+    z_dim=2,
+    hidden_dim=[16, 8],
+    alpha1=1e-3,
+    alpha2=1e-3,
+    beta=1.0,
+    corruption=0.0,
+    seed=42,
+)
+
+clf.fit(X, y, num_epochs=2)
+print("train accuracy:", (clf.predict(X) == y).mean())
+print("proba shape:", clf.predict_proba(X).shape)
+
+# convenience helpers
+pred = clf.fit_predict(X, y, num_epochs=2)
+proba = clf.fit_predict_proba_on(X, y, X[:10], num_epochs=2)
+
+# save / load
+from pathlib import Path
+path = Path("/tmp/dvae_clf.pt")
+clf.save(path)
+clf2 = VAEClassifier.load(path)
+
+assert np.array_equal(clf.predict(X), clf2.predict(X))
+```
+
 ---
+
+## Python version compatibility
+
+DVAE currently supports Python 3.10 and 3.11 only. Python 3.12 and newer are not supported due to known PyTorch 2.2.2 compatibility issues.
 
 ## Installation from Source
 
@@ -239,9 +301,9 @@ EOF
 ├── NOTICE                          # Third‑party attribution (Uber custom_mlp.py)
 ├── README.md                       # Project overview and usage
 ├── pyproject.toml                  # Project metadata and runtime dependencies
-│                  
+│
 ├── docs/                           # Project documentation (source only)
-│    └── usage.md                   # DVAE usage guide  
+│    └── usage.md                   # DVAE usage guide
 │
 ├── example/                        # Usage demonstrations and manual validation scripts
 │   ├── data/                       # Example datasets
@@ -273,7 +335,7 @@ EOF
 
 ## Contributing
 
-Contributions are welcome.  
+Contributions are welcome.
 Please see the [CONTRIBUTING.md](CONTRIBUTING.md) file for guidelines, development workflow, and coding standards.
 
 ---
@@ -298,9 +360,9 @@ For detailed configuration options, see `dvae/config/hyperparameters.py`.
 
 This project pins exact versions for reproducibility. Key dependencies include:
 
-* numpy 1.26.4 – Numerical computing (**required: PyTorch 2.2.2 is not compatible with NumPy ≥ 2.0**)  
-* torch 2.2.2 – Deep learning framework  
-* pyro-ppl 1.9.1 – Probabilistic programming library  
+* numpy 1.26.4 – Numerical computing (**required: PyTorch 2.2.2 is not compatible with NumPy ≥ 2.0**)
+* torch 2.2.2 – Deep learning framework
+* pyro-ppl 1.9.1 – Probabilistic programming library
 * scikit-learn 1.7.2 – Machine learning utilities
 
 ---
@@ -311,9 +373,9 @@ If you use this code, please cite:
 
 ### APA Format:
 
-Radim Nedbal and Babak Mahdian (2025).  
-Harnessing Variational Auto-Encoder for Binary Classification in Extremely Low Data Regime.  
-Progress in Artificial Intelligence (submitted).  
+Radim Nedbal and Babak Mahdian (2025).
+Harnessing Variational Auto-Encoder for Binary Classification in Extremely Low Data Regime.
+Progress in Artificial Intelligence (submitted).
 
 ### BibTeX:
 

@@ -4,7 +4,7 @@ Thanks for your interest in contributing to DVAE.
 
 ## Development setup
 
-Create a local virtual environment and install the package for development. 
+Create a local virtual environment and install the package for development.
 
 * Using `pyenv virtualenv` is described in Subsect. Setup in Sect. Installation in README.md.
 * Alternatively, using `venv`:
@@ -83,7 +83,7 @@ pip install dist/*.whl
 
 >DVAE uses setuptools_scm, which derives the version entirely from Git tags.
 >No version numbers are stored in the source tree.
->Every release must follow this deterministic workflow. 
+>Every release must follow this deterministic workflow.
 
 ### 1. Ensure a cleen working tree
 

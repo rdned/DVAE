@@ -182,9 +182,9 @@ cython_debug/
 .abstra/
 
 # Visual Studio Code
-#  Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore 
+#  Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore
 #  that can be found at https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore
-#  and can be added to the global gitignore or merged into this file. However, if you prefer, 
+#  and can be added to the global gitignore or merged into this file. However, if you prefer,
 #  you could uncomment the following to ignore the entire vscode folder
 # .vscode/
 
@@ -215,7 +215,7 @@ __marimo__/
 # pyenv local version file
 .python-version
 
-# track only the source of the project documentation 
+# track only the source of the project documentation
 docs/*
 !docs/usage.md
 !.keep
@@ -224,4 +224,3 @@ docs/*
 # It must NOT be tracked, otherwise the working tree becomes dirty
 # and version tags (e.g., v0.1.1) will not produce clean release versions.
 src/dvae/_version.py
-
