@@ -25,6 +25,11 @@ dependencies = [
     "scikit-learn==1.7.2"
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pre-commit",
+]
+
 [project.urls]
 Homepage = "https://github.com/rdned/DVAE"
 Repository = "https://github.com/rdned/DVAE"

@@ -1,5 +1,5 @@
 # DVAE Classifier
-[![Python](https://img.shields.io/badge/Python-≤3.12.12-blue)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-≤3.11-blue)](https://www.python.org/)
 [![NumPy](https://img.shields.io/badge/NumPy-<2.0-important)](https://numpy.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.2.2-red)](https://pytorch.org/)
 [![Pyro](https://img.shields.io/badge/Pyro-1.9.1-orange)](https://pyro.ai/)
@@ -47,7 +47,7 @@ The classifier implementation is centered on the `VAE` class in `dvae/vae.py`.
 
 ### Prerequisites
 
-- Python 3.12.x (PyTorch does not yet provide wheels for Python 3.13+)
+- Python 3.11.x (PyTorch does not yet provide wheels for Python 3.13+)
 - `pyenv` (recommended for Python version management)
 
 ### Setup
@@ -62,9 +62,9 @@ cd DVAE
 Create a virtual environment using `pyenv` and install dependencies:
 
 ```bash
-pyenv install 3.12.12 --skip-existing
-pyenv virtualenv 3.12.12 dvae-3.12.12
-pyenv local dvae-3.12.12
+pyenv install 3.11.3 --skip-existing
+pyenv virtualenv 3.11.3 dvae-3.11.3
+pyenv local dvae-3.11.3
 ```
 
 Update packaging tools (recommended):
@@ -240,7 +240,7 @@ All runtime dependencies (NumPy < 2, PyTorch 2.2.2, Pyro 1.9.1, scikit‑learn 1
 
 ```bash
 cd ../dvae_test
-pyenv virtualenv 3.12.12 dvae-test
+pyenv virtualenv 3.11.3 dvae-test
 pyenv local dvae-test
 ```
 
@@ -257,7 +257,7 @@ Pip will automatically install the correct versions of:
 * Pyro 1.9.1
 * scikit‑learn 1.7.2
 
-For GPU builds, follow the official PyTorch instructions:
+The wheel installs the CPU build of PyTorch 2.2.2; GPU builds must be installed manually following PyTorch’s instructions.:
 https://pytorch.org/
 
 ### 4. Provide the dataset path explicitly
